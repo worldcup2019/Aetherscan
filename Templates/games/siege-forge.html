@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Siege Forge: Castle Shatter</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #12151e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #game-wrapper {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 1200px;
+            max-height: 700px;
+            background: #1e2430;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        #ui-header {
+            height: 60px;
+            background: #151821;
+            border-bottom: 2px solid #2a3040;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 5;
+        }
+        .stat-group {
+            display: flex;
+            gap: 20px;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .stat-item {
+            color: #8a99ad;
+        }
+        .stat-value {
+            color: #00f0ff;
+            margin-left: 5px;
+        }
+        .btn {
+            background: #2a3245;
+            color: #ffffff;
+            border: 1px solid #3a455c;
+            padding: 8px 18px;
+            font-size: 14px;
+            font-weight: 700;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .btn:hover {
+            background: #00f0ff;
+            color: #000000;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+        }
+        #canvas-container {
+            flex-grow: 1;
+            position: relative;
+            width: 100%;
+            height: calc(100% - 60px);
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 12, 18, 0.85);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            transition: opacity 0.3s ease;
+        }
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .card {
+            background: #181c26;
+            border: 2px solid #2e374a;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            max-width: 400px;
+            width: 90%;
+        }
+        .card h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .card h1.victory { color: #00ff88; text-shadow: 0 0 15px rgba(0,255,136,0.3); }
+        .card h1.defeat { color: #ff3355; text-shadow: 0 0 15px rgba(255,51,85,0.3); }
+        .card p {
+            color: #8a99ad;
+            margin-bottom: 25px;
+            font-size: 16px;
+            line-height: 1.4;
+        }
+        .card .btn-primary {
+            background: #00f0ff;
+            color: #000;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            width: 100%;
+        }
+        .card .btn-primary:hover {
+            background: #ffffff;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <div id="ui-header">
+        <div class="stat-group">
+            <div class="stat-item">LEVEL: <span id="val-level" class="stat-value">1/15</span></div>
+            <div class="stat-item">SHOTS: <span id="val-shots" class="stat-value">0/5</span></div>
+            <div class="stat-item">TARGETS: <span id="val-targets" class="stat-value">0/0</span></div>
+        </div>
+        <button id="btn-reset" class="btn">Reset Level</button>
+    </div>
+    
+    <div id="canvas-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="overlay-card" class="overlay hidden">
+            <div class="card">
+                <h1 id="card-title">VICTORY!</h1>
+                <p id="card-msg">All target defenses have been pulverized into dust.</p>
+                <button id="card-btn" class="btn btn-primary">Next Level</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const valLevel = document.getElementById('val-level');
+    const valShots = document.getElementById('val-shots');
+    const valTargets = document.getElementById('val-targets');
+    const btnReset = document.getElementById('btn-reset');
+    const overlayCard = document.getElementById('overlay-card');
+    const cardTitle = document.getElementById('card-title');
+    const cardMsg = document.getElementById('card-msg');
+    const cardBtn = document.getElementById('card-btn');
+
+    const WORLD = {
+        width: 1200,
+        height: 640,
+        gravity: 0.28,
+        groundY: 560
+    };
+
+    let scale = 1;
+    function resizeCanvas() {
+        const container = canvas.parentElement;
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+        scale = canvas.width / WORLD.width;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    class Slingshot {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.pullRadius = 100;
+            this.isDragging = false;
+            this.dragPos = { x: x, y: y };
+        }
+
+        getLaunchVector() {
+            const dx = this.x - this.dragPos.x;
+            const dy = this.y - this.dragPos.y;
+            return { vx: dx * 0.18, vy: dy * 0.18 };
+        }
+
+        draw(ctx) {
+            ctx.save();
+            ctx.strokeStyle = '#3a271d';
+            ctx.lineWidth = 12 * scale;
+            ctx.lineCap = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo((this.x - 10) * scale, (this.y + 60) * scale);
+            ctx.lineTo(this.x * scale, this.y * scale);
+            ctx.lineTo((this.x - 20) * scale, (this.y - 40) * scale);
+            ctx.moveTo(this.x * scale, this.y * scale);
+            ctx.lineTo((this.x + 20) * scale, (this.y - 40) * scale);
+            ctx.stroke();
+
+            if (this.isDragging) {
+                ctx.strokeStyle = '#e07a5f';
+                ctx.lineWidth = 4 * scale;
+                ctx.beginPath();
+                ctx.moveTo((this.x - 20) * scale, (this.y - 40) * scale);
+                ctx.lineTo(this.dragPos.x * scale, this.dragPos.y * scale);
+                ctx.lineTo((this.x + 20) * scale, (this.y - 40) * scale);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        drawTrajectory(ctx) {
+            if (!this.isDragging) return;
+
+            const vec = this.getLaunchVector();
+            let simX = this.dragPos.x;
+            let simY = this.dragPos.y;
+            let simVx = vec.vx;
+            let simVy = vec.vy;
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+
+            for (let i = 0; i < 30; i++) {
+                simX += simVx;
+                simY += simVy;
+                simVy += WORLD.gravity;
+
+                if (simY >= WORLD.groundY) break;
+
+                ctx.beginPath();
+                ctx.arc(simX * scale, simY * scale, (4 - (i * 0.1)) * scale, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+    }
+
+    class Projectile {
+        constructor(x, y, vx, vy) {
+            this.x = x;
+            this.y = y;
+            this.vx = vx;
+            this.vy = vy;
+            this.radius = 14;
+            this.mass = 3;
+            this.isDead = false;
+            this.settleTimer = 0;
+        }
+
+        update() {
+            this.vy += WORLD.gravity;
+            this.x += this.vx;
+            this.y += this.vy;
+
+            if (this.y + this.radius > WORLD.groundY) {
+                this.y = WORLD.groundY - this.radius;
+                this.vy *= -0.3;
+                this.vx *= 0.7;
+            }
+
+            if (this.x - this.radius < 0 || this.x + this.radius > WORLD.width) {
+                this.vx *= -0.5;
+            }
+
+            if (Math.hypot(this.vx, this.vy) < 0.2) {
+                this.settleTimer++;
+                if (this.settleTimer > 90) this.isDead = true;
+            } else {
+                this.settleTimer = 0;
+            }
+        }
+
+        draw(ctx) {
+            ctx.save();
+            ctx.translate(this.x * scale, this.y * scale);
+
+            ctx.fillStyle = '#4a4e69';
+            ctx.strokeStyle = '#22223b';
+            ctx.lineWidth = 2 * scale;
+
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius * scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.arc((-this.radius * 0.3) * scale, (-this.radius * 0.3) * scale, (this.radius * 0.3) * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+    }
+
+    class Block {
+        constructor(x, y, w, h, material = 'wood') {
+            this.x = x;
+            this.y = y;
+            this.w = w;
+            this.h = h;
+            this.vx = 0;
+            this.vy = 0;
+            this.angle = 0;
+            this.vRot = 0;
+            this.material = material;
+            this.mass = material === 'stone' ? 5 : 2;
+            this.hp = material === 'stone' ? 300 : 150;
+            this.isDead = false;
+            this.isStatic = true;
+        }
+
+        wakeUp() {
+            if (this.isStatic) {
+                this.isStatic = false;
+                blocks.forEach(b => {
+                    if (b.isStatic && b !== this) {
+                        const dist = Math.hypot(b.x - this.x, b.y - this.y);
+                        if (dist < 120) b.wakeUp();
+                    }
+                });
+            }
+        }
+
+        update() {
+            if (this.isStatic) return;
+
+            this.vy += WORLD.gravity;
+            this.x += this.vx;
+            this.y += this.vy;
+            this.angle += this.vRot;
+
+            this.vx *= 0.95;
+            this.vy *= 0.95;
+            this.vRot *= 0.90;
+
+            if (this.y + this.h / 2 > WORLD.groundY) {
+                this.y = WORLD.groundY - this.h / 2;
+                this.vy = 0;
+                this.vx *= 0.7;
+                this.vRot *= 0.4;
+            }
+        }
+
+        draw(ctx) {
+            if (this.isDead) return;
+
+            ctx.save();
+            ctx.translate(this.x * scale, this.y * scale);
+            ctx.rotate(this.angle);
+
+            ctx.fillStyle = this.material === 'stone' ? '#7f8c8d' : '#d35400';
+            ctx.strokeStyle = this.material === 'stone' ? '#2c3e50' : '#873600';
+            ctx.lineWidth = 2 * scale;
+
+            ctx.beginPath();
+            ctx.rect((-this.w / 2) * scale, (-this.h / 2) * scale, this.w * scale, this.h * scale);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+            ctx.beginPath();
+            ctx.moveTo((-this.w / 2) * scale, (-this.h / 2) * scale);
+            ctx.lineTo((this.w / 2) * scale, (this.h / 2) * scale);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+    }
+
+    class Target {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.radius = 16;
+            this.vx = 0;
+            this.vy = 0;
+            this.isDead = false;
+            this.isStatic = true;
+        }
+
+        wakeUp() {
+            this.isStatic = false;
+        }
+
+        update() {
+            if (this.isStatic) return;
+
+            this.vy += WORLD.gravity;
+            this.x += this.vx;
+            this.y += this.vy;
+
+            this.vx *= 0.95;
+            this.vy *= 0.95;
+
+            if (this.y + this.radius > WORLD.groundY) {
+                this.y = WORLD.groundY - this.radius;
+                this.vy = 0;
+                this.vx *= 0.8;
+            }
+        }
+
+        draw(ctx) {
+            if (this.isDead) return;
+
+            ctx.save();
+            ctx.translate(this.x * scale, this.y * scale);
+
+            ctx.fillStyle = '#e74c3c';
+            ctx.strokeStyle = '#c0392b';
+            ctx.lineWidth = 2 * scale;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius * scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc((-5) * scale, (-3) * scale, 3 * scale, 0, Math.PI * 2);
+            ctx.arc((5) * scale, (-3) * scale, 3 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc((-5) * scale, (-3) * scale, 1.5 * scale, 0, Math.PI * 2);
+            ctx.arc((5) * scale, (-3) * scale, 1.5 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1.5 * scale;
+            ctx.beginPath();
+            ctx.moveTo((-8) * scale, (-8) * scale);
+            ctx.lineTo((-2) * scale, (-5) * scale);
+            ctx.moveTo((8) * scale, (-8) * scale);
+            ctx.lineTo((2) * scale, (-5) * scale);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+    }
+
+    class Particle {
+        constructor(x, y, color) {
+            this.x = x;
+            this.y = y;
+            this.color = color;
+            this.radius = Math.random() * 4 + 2;
+            this.vx = (Math.random() - 0.5) * 8;
+            this.vy = (Math.random() - 0.5) * 8;
+            this.alpha = 1;
+            this.decay = Math.random() * 0.03 + 0.015;
+        }
+
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.alpha -= this.decay;
+        }
+
+        draw(ctx) {
+            if (this.alpha <= 0) return;
+            ctx.save();
+            ctx.globalAlpha = this.alpha;
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    // 15 Level Definitions
+    const LEVELS = [
+        // Level 1: Standard Guard Post
+        {
+            maxShots: 3,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(850, gY - 40, 30, 80, 'wood'),
+                        new Block(950, gY - 40, 30, 80, 'wood'),
+                        new Block(900, gY - 90, 150, 20, 'stone')
+                    ],
+                    targets: [new Target(900, gY - 16), new Target(900, gY - 116)]
+                };
+            }
+        },
+        // Level 2: Double Tower Wall
+        {
+            maxShots: 4,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(800, gY - 40, 30, 80, 'wood'),
+                        new Block(900, gY - 40, 30, 80, 'wood'),
+                        new Block(1000, gY - 40, 30, 80, 'wood'),
+                        new Block(850, gY - 90, 140, 20, 'stone'),
+                        new Block(950, gY - 90, 140, 20, 'stone')
+                    ],
+                    targets: [new Target(850, gY - 16), new Target(950, gY - 16)]
+                };
+            }
+        },
+        // Level 3: Stone Core Bunker
+        {
+            maxShots: 4,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(820, gY - 40, 40, 80, 'stone'),
+                        new Block(980, gY - 40, 40, 80, 'stone'),
+                        new Block(900, gY - 90, 200, 20, 'wood'),
+                        new Block(900, gY - 140, 30, 80, 'wood'),
+                        new Block(900, gY - 190, 100, 20, 'stone')
+                    ],
+                    targets: [new Target(900, gY - 16), new Target(900, gY - 116)]
+                };
+            }
+        },
+        // Level 4: The Triple Archway
+        {
+            maxShots: 4,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(780, gY - 40, 20, 80, 'wood'),
+                        new Block(860, gY - 40, 20, 80, 'wood'),
+                        new Block(940, gY - 40, 20, 80, 'wood'),
+                        new Block(1020, gY - 40, 20, 80, 'wood'),
+                        new Block(820, gY - 90, 110, 20, 'stone'),
+                        new Block(980, gY - 90, 110, 20, 'stone'),
+                        new Block(900, gY - 140, 280, 20, 'wood')
+                    ],
+                    targets: [new Target(820, gY - 16), new Target(980, gY - 16), new Target(900, gY - 166)]
+                };
+            }
+        },
+        // Level 5: Staggered High-Rise
+        {
+            maxShots: 5,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(880, gY - 40, 30, 80, 'stone'),
+                        new Block(960, gY - 40, 30, 80, 'stone'),
+                        new Block(920, gY - 90, 140, 20, 'wood'),
+                        new Block(880, gY - 140, 30, 80, 'wood'),
+                        new Block(960, gY - 140, 30, 80, 'wood'),
+                        new Block(920, gY - 190, 140, 20, 'stone'),
+                        new Block(920, gY - 240, 30, 80, 'wood')
+                    ],
+                    targets: [new Target(920, gY - 16), new Target(920, gY - 116), new Target(920, gY - 266)]
+                };
+            }
+        },
+        // Level 6: Wooden Shield Fortress
+        {
+            maxShots: 4,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(750, gY - 60, 20, 120, 'wood'),
+                        new Block(850, gY - 40, 30, 80, 'stone'),
+                        new Block(950, gY - 40, 30, 80, 'stone'),
+                        new Block(900, gY - 90, 140, 20, 'wood'),
+                        new Block(900, gY - 140, 30, 80, 'wood')
+                    ],
+                    targets: [new Target(850, gY - 16), new Target(950, gY - 16), new Target(900, gY - 116)]
+                };
+            }
+        },
+        // Level 7: The Pyramid Keep
+        {
+            maxShots: 5,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(800, gY - 40, 30, 80, 'stone'),
+                        new Block(880, gY - 40, 30, 80, 'stone'),
+                        new Block(960, gY - 40, 30, 80, 'stone'),
+                        new Block(1040, gY - 40, 30, 80, 'stone'),
+                        new Block(920, gY - 90, 280, 20, 'wood'),
+                        new Block(840, gY - 140, 30, 80, 'wood'),
+                        new Block(1000, gY - 140, 30, 80, 'wood'),
+                        new Block(920, gY - 190, 200, 20, 'stone'),
+                        new Block(920, gY - 240, 30, 80, 'wood')
+                    ],
+                    targets: [new Target(840, gY - 16), new Target(1000, gY - 16), new Target(920, gY - 116), new Target(920, gY - 266)]
+                };
+            }
+        },
+        // Level 8: Suspended Citadel
+        {
+            maxShots: 4,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(820, gY - 50, 40, 100, 'stone'),
+                        new Block(980, gY - 50, 40, 100, 'stone'),
+                        new Block(900, gY - 110, 220, 20, 'stone'),
+                        new Block(860, gY - 160, 20, 80, 'wood'),
+                        new Block(940, gY - 160, 20, 80, 'wood'),
+                        new Block(900, gY - 210, 120, 20, 'wood')
+                    ],
+                    targets: [new Target(900, gY - 16), new Target(900, gY - 136), new Target(900, gY - 236)]
+                };
+            }
+        },
+        // Level 9: Double Shielded Bastion
+        {
+            maxShots: 5,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(720, gY - 80, 20, 160, 'wood'),
+                        new Block(760, gY - 80, 20, 160, 'wood'),
+                        new Block(860, gY - 40, 30, 80, 'stone'),
+                        new Block(960, gY - 40, 30, 80, 'stone'),
+                        new Block(910, gY - 90, 150, 20, 'stone'),
+                        new Block(910, gY - 140, 30, 80, 'wood'),
+                        new Block(910, gY - 190, 100, 20, 'stone')
+                    ],
+                    targets: [new Target(860, gY - 16), new Target(960, gY - 16), new Target(910, gY - 116)]
+                };
+            }
+        },
+        // Level 10: Twin Towers with Bridge
+        {
+            maxShots: 5,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(800, gY - 40, 30, 80, 'wood'),
+                        new Block(860, gY - 40, 30, 80, 'wood'),
+                        new Block(980, gY - 40, 30, 80, 'wood'),
+                        new Block(1040, gY - 40, 30, 80, 'wood'),
+                        new Block(830, gY - 90, 100, 20, 'stone'),
+                        new Block(1010, gY - 90, 100, 20, 'stone'),
+                        new Block(920, gY - 120, 280, 20, 'wood')
+                    ],
+                    targets: [new Target(830, gY - 16), new Target(1010, gY - 16), new Target(920, gY - 146)]
+                };
+            }
+        },
+        // Level 11: The Heavy Vault
+        {
+            maxShots: 5,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(820, gY - 40, 40, 80, 'stone'),
+                        new Block(900, gY - 40, 40, 80, 'stone'),
+                        new Block(980, gY - 40, 40, 80, 'stone'),
+                        new Block(900, gY - 90, 220, 20, 'stone'),
+                        new Block(860, gY - 140, 40, 80, 'stone'),
+                        new Block(940, gY - 140, 40, 80, 'stone'),
+                        new Block(900, gY - 190, 140, 20, 'stone')
+                    ],
+                    targets: [new Target(860, gY - 16), new Target(940, gY - 16), new Target(900, gY - 116), new Target(900, gY - 216)]
+                };
+            }
+        },
+        // Level 12: Slanted Roof Enclosure
+        {
+            maxShots: 4,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(820, gY - 40, 30, 80, 'wood'),
+                        new Block(900, gY - 40, 30, 80, 'stone'),
+                        new Block(980, gY - 40, 30, 80, 'wood'),
+                        new Block(900, gY - 90, 200, 20, 'stone'),
+                        new Block(860, gY - 140, 30, 80, 'wood'),
+                        new Block(940, gY - 140, 30, 80, 'wood'),
+                        new Block(900, gY - 190, 120, 20, 'wood')
+                    ],
+                    targets: [new Target(900, gY - 16), new Target(860, gY - 116), new Target(940, gY - 116)]
+                };
+            }
+        },
+        // Level 13: Ironclad Fortress
+        {
+            maxShots: 5,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(760, gY - 60, 20, 120, 'stone'),
+                        new Block(840, gY - 40, 30, 80, 'stone'),
+                        new Block(920, gY - 40, 30, 80, 'stone'),
+                        new Block(1000, gY - 40, 30, 80, 'stone'),
+                        new Block(880, gY - 90, 200, 20, 'wood'),
+                        new Block(880, gY - 140, 30, 80, 'stone'),
+                        new Block(880, gY - 190, 100, 20, 'wood')
+                    ],
+                    targets: [new Target(840, gY - 16), new Target(920, gY - 16), new Target(1000, gY - 16), new Target(880, gY - 116)]
+                };
+            }
+        },
+        // Level 14: The Tiered Megastructure
+        {
+            maxShots: 6,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(780, gY - 40, 30, 80, 'stone'),
+                        new Block(860, gY - 40, 30, 80, 'wood'),
+                        new Block(940, gY - 40, 30, 80, 'wood'),
+                        new Block(1020, gY - 40, 30, 80, 'stone'),
+                        new Block(900, gY - 90, 280, 20, 'stone'),
+                        new Block(820, gY - 140, 30, 80, 'wood'),
+                        new Block(980, gY - 140, 30, 80, 'wood'),
+                        new Block(900, gY - 190, 200, 20, 'stone'),
+                        new Block(900, gY - 240, 30, 80, 'stone'),
+                        new Block(900, gY - 290, 100, 20, 'wood')
+                    ],
+                    targets: [new Target(860, gY - 16), new Target(940, gY - 16), new Target(900, gY - 116), new Target(900, gY - 216), new Target(900, gY - 316)]
+                };
+            }
+        },
+        // Level 15: The Royal Hold (Final Castle)
+        {
+            maxShots: 6,
+            build: () => {
+                const gY = WORLD.groundY;
+                return {
+                    blocks: [
+                        new Block(720, gY - 90, 20, 180, 'stone'),
+                        new Block(800, gY - 40, 40, 80, 'stone'),
+                        new Block(880, gY - 40, 30, 80, 'wood'),
+                        new Block(960, gY - 40, 30, 80, 'wood'),
+                        new Block(1040, gY - 40, 40, 80, 'stone'),
+                        new Block(920, gY - 90, 300, 20, 'stone'),
+                        new Block(840, gY - 140, 30, 80, 'stone'),
+                        new Block(1000, gY - 140, 30, 80, 'stone'),
+                        new Block(920, gY - 190, 200, 20, 'wood'),
+                        new Block(920, gY - 240, 30, 80, 'stone'),
+                        new Block(920, gY - 290, 100, 20, 'stone')
+                    ],
+                    targets: [
+                        new Target(800, gY - 16),
+                        new Target(880, gY - 16),
+                        new Target(960, gY - 16),
+                        new Target(1040, gY - 16),
+                        new Target(920, gY - 116),
+                        new Target(920, gY - 316)
+                    ]
+                };
+            }
+        }
+    ];
+
+    let currentLevelIdx = 0;
+    let shotsFired = 0;
+    let maxShots = 0;
+    let slingshot = new Slingshot(180, 480);
+    let activeProjectile = null;
+    let blocks = [];
+    let targets = [];
+    let particles = [];
+    let gameState = 'AIMING';
+
+    function loadLevel(idx) {
+        currentLevelIdx = idx;
+        const lvl = LEVELS[currentLevelIdx];
+        maxShots = lvl.maxShots;
+        shotsFired = 0;
+        
+        const data = lvl.build();
+        blocks = data.blocks;
+        targets = data.targets;
+        activeProjectile = null;
+        particles = [];
+        gameState = 'AIMING';
+
+        updateUI();
+        overlayCard.classList.add('hidden');
+    }
+
+    function updateUI() {
+        valLevel.textContent = `${currentLevelIdx + 1}/${LEVELS.length}`;
+        valShots.textContent = `${shotsFired}/${maxShots}`;
+        const activeTargets = targets.filter(t => !t.isDead).length;
+        valTargets.textContent = `${activeTargets}/${targets.length}`;
+    }
+
+    function createExplosion(x, y, color, count = 15) {
+        for (let i = 0; i < count; i++) {
+            particles.push(new Particle(x, y, color));
+        }
+    }
+
+    // Collision Mechanics
+    function resolveCircleBoxCollision(circle, box) {
+        const cos = Math.cos(-box.angle);
+        const sin = Math.sin(-box.angle);
+
+        const cx = circle.x - box.x;
+        const cy = circle.y - box.y;
+
+        const unrotatedX = cos * cx - sin * cy + box.x;
+        const unrotatedY = sin * cx + cos * cy + box.y;
+
+        let closestX = Math.max(box.x - box.w / 2, Math.min(unrotatedX, box.x + box.w / 2));
+        let closestY = Math.max(box.y - box.h / 2, Math.min(unrotatedY, box.y + box.h / 2));
+
+        const distX = unrotatedX - closestX;
+        const distY = unrotatedY - closestY;
+        const distance = Math.hypot(distX, distY);
+
+        if (distance < circle.radius) {
+            box.wakeUp();
+
+            let nx = distX / (distance || 1);
+            let ny = distY / (distance || 1);
+
+            const worldNx = Math.cos(box.angle) * nx - Math.sin(box.angle) * ny;
+            const worldNy = Math.sin(box.angle) * nx + Math.cos(box.angle) * ny;
+
+            const overlap = circle.radius - distance;
+            circle.x += worldNx * overlap;
+            circle.y += worldNy * overlap;
+
+            const relativeVx = circle.vx - box.vx;
+            const relativeVy = circle.vy - box.vy;
+            const impulse = (relativeVx * worldNx + relativeVy * worldNy) * 1.2;
+
+            if (impulse > 0) {
+                circle.vx -= (impulse / circle.mass) * worldNx * 0.8;
+                circle.vy -= (impulse / circle.mass) * worldNy * 0.8;
+
+                box.vx += (impulse / box.mass) * worldNx * 0.6;
+                box.vy += (impulse / box.mass) * worldNy * 0.6;
+                box.vRot += (closestX - box.x) * worldNy * 0.002;
+
+                const impactForce = Math.hypot(relativeVx, relativeVy);
+                box.hp -= impactForce * 15;
+                if (box.hp <= 0) {
+                    box.isDead = true;
+                    createExplosion(box.x, box.y, box.material === 'stone' ? '#7f8c8d' : '#d35400', 20);
+                }
+            }
+        }
+    }
+
+    function resolveBoxBoxCollision(b1, b2) {
+        if (b1.isStatic && b2.isStatic) return;
+
+        const dx = b2.x - b1.x;
+        const dy = b2.y - b1.y;
+        const dist = Math.hypot(dx, dy);
+        const minDist = (b1.w + b2.w) / 4 + (b1.h + b2.h) / 4;
+
+        if (dist < minDist) {
+            b1.wakeUp();
+            b2.wakeUp();
+
+            const overlap = minDist - dist;
+            const nx = dx / (dist || 1);
+            const ny = dy / (dist || 1);
+
+            b1.x -= nx * overlap * 0.5;
+            b1.y -= ny * overlap * 0.5;
+            b2.x += nx * overlap * 0.5;
+            b2.y += ny * overlap * 0.5;
+
+            const vDiffX = b1.vx - b2.vx;
+            const vDiffY = b1.vy - b2.vy;
+            const impulse = (vDiffX * nx + vDiffY * ny) * 0.3;
+
+            b1.vx -= impulse * nx;
+            b1.vy -= impulse * ny;
+            b2.vx += impulse * nx;
+            b2.vy += impulse * ny;
+        }
+    }
+
+    function resolveTargetCollisions(target) {
+        blocks.forEach(b => {
+            if (b.isDead) return;
+            const dist = Math.hypot(target.x - b.x, target.y - b.y);
+            const impactForce = Math.hypot(b.vx, b.vy);
+
+            if (dist < target.radius + Math.min(b.w, b.h) / 2) {
+                if (!b.isStatic && (impactForce > 1.2 || b.y < target.y - 5)) {
+                    target.wakeUp();
+                    target.isDead = true;
+                    createExplosion(target.x, target.y, '#e74c3c', 25);
+                }
+            }
+        });
+
+        if (activeProjectile) {
+            const dist = Math.hypot(target.x - activeProjectile.x, target.y - activeProjectile.y);
+            if (dist < target.radius + activeProjectile.radius) {
+                target.wakeUp();
+                target.isDead = true;
+                createExplosion(target.x, target.y, '#e74c3c', 25);
+            }
+        }
+    }
+
+    // Input Handlers
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+            x: (clientX - rect.left) / scale,
+            y: (clientY - rect.top) / scale
+        };
+    }
+
+    function handleStart(e) {
+        if (gameState !== 'AIMING' || shotsFired >= maxShots) return;
+        const pos = getMousePos(e);
+        const dist = Math.hypot(pos.x - slingshot.x, pos.y - slingshot.y);
+
+        if (dist < slingshot.pullRadius * 1.5) {
+            slingshot.isDragging = true;
+            slingshot.dragPos = pos;
+        }
+    }
+
+    function handleMove(e) {
+        if (!slingshot.isDragging) return;
+        const pos = getMousePos(e);
+        const dx = pos.x - slingshot.x;
+        const dy = pos.y - slingshot.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist > slingshot.pullRadius) {
+            slingshot.dragPos = {
+                x: slingshot.x + (dx / dist) * slingshot.pullRadius,
+                y: slingshot.y + (dy / dist) * slingshot.pullRadius
+            };
+        } else {
+            slingshot.dragPos = pos;
+        }
+    }
+
+    function handleEnd() {
+        if (!slingshot.isDragging) return;
+        slingshot.isDragging = false;
+
+        const vec = slingshot.getLaunchVector();
+        if (Math.hypot(vec.vx, vec.vy) > 0.5) {
+            activeProjectile = new Projectile(slingshot.dragPos.x, slingshot.dragPos.y, vec.vx, vec.vy);
+            shotsFired++;
+            gameState = 'FLYING';
+            updateUI();
+        } else {
+            slingshot.dragPos = { x: slingshot.x, y: slingshot.y };
+        }
+    }
+
+    window.addEventListener('mousedown', handleStart);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+
+    window.addEventListener('touchstart', handleStart);
+    window.addEventListener('touchmove', handleMove);
+    window.addEventListener('touchend', handleEnd);
+
+    btnReset.addEventListener('click', () => loadLevel(currentLevelIdx));
+
+    cardBtn.addEventListener('click', () => {
+        if (currentLevelIdx + 1 < LEVELS.length) {
+            loadLevel(currentLevelIdx + 1);
+        } else {
+            loadLevel(0);
+        }
+    });
+
+    // Main Loop
+    function gameLoop() {
+        if (activeProjectile) {
+            activeProjectile.update();
+
+            blocks.forEach(block => {
+                if (!block.isDead) resolveCircleBoxCollision(activeProjectile, block);
+            });
+
+            if (activeProjectile.isDead) {
+                activeProjectile = null;
+                if (gameState === 'FLYING') gameState = 'SETTLING';
+            }
+        }
+
+        blocks.forEach(block => {
+            if (!block.isDead) block.update();
+        });
+
+        for (let i = 0; i < blocks.length; i++) {
+            for (let j = i + 1; j < blocks.length; j++) {
+                if (!blocks[i].isDead && !blocks[j].isDead) {
+                    resolveBoxBoxCollision(blocks[i], blocks[j]);
+                }
+            }
+        }
+
+        targets.forEach(target => {
+            if (!target.isDead) {
+                target.update();
+                resolveTargetCollisions(target);
+            }
+        });
+
+        particles.forEach(p => p.update());
+        particles = particles.filter(p => p.alpha > 0);
+
+        if (gameState === 'SETTLING' || gameState === 'FLYING') {
+            const allTargetsDead = targets.every(t => t.isDead);
+            const motionSettled = !activeProjectile && blocks.every(b => b.isStatic || Math.hypot(b.vx, b.vy) < 0.2);
+
+            if (allTargetsDead) {
+                gameState = 'GAMEOVER';
+                cardTitle.className = 'victory';
+                cardTitle.textContent = 'VICTORY!';
+                cardMsg.textContent = currentLevelIdx + 1 < LEVELS.length ? 'You shattered the enemy defenses completely!' : 'Campaign Complete! You have conquered all 15 castles!';
+                cardBtn.textContent = currentLevelIdx + 1 < LEVELS.length ? 'Next Level' : 'Restart Campaign';
+                overlayCard.classList.remove('hidden');
+            } else if (motionSettled || shotsFired >= maxShots) {
+                if (shotsFired >= maxShots && !allTargetsDead) {
+                    gameState = 'GAMEOVER';
+                    cardTitle.className = 'defeat';
+                    cardTitle.textContent = 'DEFEAT!';
+                    cardMsg.textContent = 'Out of ammunition! The castle standard still stands.';
+                    cardBtn.textContent = 'Try Again';
+                    overlayCard.classList.remove('hidden');
+                } else {
+                    gameState = 'AIMING';
+                }
+            }
+        }
+
+        updateUI();
+
+        // Render Frame
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        skyGradient.addColorStop(0, '#1a2238');
+        skyGradient.addColorStop(1, '#2c3e50');
+        ctx.fillStyle = skyGradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#27ae60';
+        ctx.fillRect(0, WORLD.groundY * scale, canvas.width, (WORLD.height - WORLD.groundY) * scale);
+        ctx.fillStyle = '#219150';
+        ctx.fillRect(0, (WORLD.groundY + 15) * scale, canvas.width, (WORLD.height - WORLD.groundY) * scale);
+
+        slingshot.drawTrajectory(ctx);
+
+        blocks.forEach(b => b.draw(ctx));
+        targets.forEach(t => t.draw(ctx));
+        if (activeProjectile) activeProjectile.draw(ctx);
+        slingshot.draw(ctx);
+        particles.forEach(p => p.draw(ctx));
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    resizeCanvas();
+    loadLevel(0);
+    requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

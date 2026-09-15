@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings – ÆtherScan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bg: #0a0e1a; --panel: rgba(255,255,255,0.045); --panel-hover: rgba(255,255,255,0.075);
+        --border: rgba(255,255,255,0.10); --text: #eef1f8; --text-dim: #9aa4bf; --text-faint: #6b7490;
+        --accent1: #22d3ee; --accent2: #a78bfa; --accent3: #f472b6;
+        --aurora-gradient: linear-gradient(120deg, var(--accent1), var(--accent2) 50%, var(--accent3));
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', Arial, sans-serif; }
+    html, body { height: 100%; }
+    body {
+        background: var(--bg); color: var(--text); min-height: 100vh; position: relative; overflow-x: hidden;
+    }
+    .aurora { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+    .aurora span { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.28; }
+    .aurora span:nth-child(1) { width: 480px; height: 480px; background: var(--accent1); top: -160px; left: -120px; }
+    .aurora span:nth-child(2) { width: 520px; height: 520px; background: var(--accent2); bottom: -200px; right: -160px; }
+
+    .page { max-width: 640px; margin: 0 auto; padding: 50px 24px 70px; }
+
+    .back-link {
+        display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+        color: var(--text-dim); font-size: 13px; font-weight: 600; margin-bottom: 26px;
+    }
+    .back-link:hover { color: var(--text); }
+
+    .page-title {
+        font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 30px; letter-spacing: -0.5px;
+        background: var(--aurora-gradient); -webkit-background-clip: text; background-clip: text; color: transparent;
+        margin-bottom: 6px;
+    }
+    .page-sub { color: var(--text-dim); font-size: 14px; margin-bottom: 30px; }
+
+    .saved-banner {
+        background: rgba(34,211,238,0.10); border: 1px solid rgba(34,211,238,0.35); color: var(--accent1);
+        border-radius: 10px; padding: 12px 16px; font-size: 13px; font-weight: 600; margin-bottom: 24px;
+    }
+
+    .card {
+        border: 1px solid var(--border); border-radius: 16px; padding: 24px;
+        background: var(--panel); backdrop-filter: blur(16px); margin-bottom: 20px;
+    }
+    .card-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .card-desc { font-size: 13px; color: var(--text-dim); line-height: 1.55; margin-bottom: 16px; }
+    .card-desc a { color: var(--accent1); text-decoration: none; }
+    .card-desc a:hover { text-decoration: underline; }
+    .card-desc code {
+        background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 5px; font-size: 12px;
+    }
+
+    label { display: block; font-size: 12px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+    input[type="password"], input[type="text"] {
+        width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border);
+        background: rgba(255,255,255,0.03); color: var(--text); font-size: 14px; outline: none;
+        font-family: 'Consolas', 'SFMono-Regular', Menlo, monospace;
+    }
+    input:focus { border-color: var(--accent2); }
+
+    .save-row { display: flex; justify-content: flex-end; margin-top: 8px; }
+    button {
+        padding: 12px 28px; font-size: 14px; color: #0a0e1a; border: none; border-radius: 22px;
+        cursor: pointer; font-weight: 700; background: var(--aurora-gradient);
+        transition: transform .15s ease, box-shadow .15s ease;
+        box-shadow: 0 4px 18px rgba(167,139,250,0.25);
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(167,139,250,0.4); }
+
+    .note {
+        font-size: 12px; color: var(--text-faint); line-height: 1.6; margin-top: 30px; text-align: center;
+    }
+</style>
+</head>
+<body>
+<div class="aurora"><span></span><span></span></div>
+<div class="page">
+    <a class="back-link" href="/">&larr; Back to AetherScan</a>
+    <div class="page-title">Settings</div>
+    <div class="page-sub">Signed in as <strong>{{ username }}</strong> — your own API keys, saved to your account.</div>
+
+    {% if saved %}
+        <div class="saved-banner">✓ Saved. Your keys are now active on this account.</div>
+    {% endif %}
+
+    <form method="POST" action="/settings">
+        <div class="card">
+            <div class="card-title">Gemini API key</div>
+            <div class="card-desc">
+                Powers AI Chat and the AI Overview box. Genuinely free, no card required —
+                get one at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.
+                Google changed new keys to authorization keys in September 2026. This app now uses
+                Google's current <code>google-genai</code> client, so new authorization keys work here.
+                Create a new key in AI Studio rather than reusing an old unrestricted Standard key.
+            </div>
+            <label for="gemini_api_key">GEMINI_API_KEY</label>
+            <input type="password" id="gemini_api_key" name="gemini_api_key" placeholder="AIza... or AQ..." value="{{ gemini_api_key }}" autocomplete="off">
+        </div>
+
+        <div class="card">
+            <div class="card-title">Groq API key</div>
+            <div class="card-desc">
+                Another free option (no card required) for AI Chat and the AI Overview box — tried if
+                neither Gemini nor Claude is set. Uses Groq's fast open-model hosting (currently Llama
+                3.3 70B). Get a free key at
+                <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>.
+            </div>
+            <label for="groq_api_key">GROQ_API_KEY</label>
+            <input type="password" id="groq_api_key" name="groq_api_key" placeholder="gsk_..." value="{{ groq_api_key }}" autocomplete="off">
+        </div>
+
+        <div class="card">
+            <div class="card-title">Anthropic (Claude) API key</div>
+            <div class="card-desc">
+                Alternative to Gemini for AI Chat and the AI Overview box — tried after Gemini,
+                before Groq. Pay-as-you-go, get one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.
+            </div>
+            <label for="anthropic_api_key">ANTHROPIC_API_KEY</label>
+            <input type="password" id="anthropic_api_key" name="anthropic_api_key" placeholder="sk-ant-..." value="{{ anthropic_api_key }}" autocomplete="off">
+        </div>
+
+        <div class="card">
+            <div class="card-title">TMDb API key</div>
+            <div class="card-desc">
+                Powers the Movies tab (posters, ratings, where to watch). Free "Developer" key at
+                <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener">themoviedb.org/signup</a> →
+                Settings → API.
+            </div>
+            <label for="tmdb_api_key">TMDB_API_KEY</label>
+            <input type="password" id="tmdb_api_key" name="tmdb_api_key" placeholder="TMDb API Key (v3 auth)" value="{{ tmdb_api_key }}" autocomplete="off">
+        </div>
+
+        <div class="card">
+            <div class="card-title">Broader web search providers</div>
+            <div class="card-desc">
+                AetherScan combines several free sources automatically. For broader Bing or Google-style web coverage,
+                add these as Windows environment variables and restart the app:
+                <code>BING_API_KEY</code>, <code>GOOGLE_CSE_API_KEY</code>, and <code>GOOGLE_CSE_ID</code>.
+                Keep provider keys out of screenshots and source files.
+            </div>
+            <div class="card-desc">
+                PowerShell example: <code>setx BING_API_KEY "your-key"</code>.<br>
+                Google Custom Search needs both an API key and a Programmable Search Engine ID (the <code>cx</code> value).
+            </div>
+        </div>
+
+        <div class="save-row">
+            <button type="submit">Save Settings</button>
+        </div>
+    </form>
+
+    <div class="note">
+        Leave a field blank and save to clear that key. These keys are stored in your local account
+        database only — they're never sent anywhere except directly to Google/Groq/Anthropic/TMDb when
+        that feature is used.
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Basketball Free Throw Pro: Extreme</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; touch-action: none; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+        body {
+            background-color: #0b0f19;
+            color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #game-wrapper {
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9), 0 0 40px rgba(234, 88, 12, 0.3);
+            border: 3px solid #1e293b;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+        }
+        canvas { display: block; image-rendering: high-quality; cursor: grab; }
+        canvas:active { cursor: grabbing; }
+
+        /* UI OVERLAYS & MODALS */
+        .top-nav {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .nav-group { display: flex; gap: 8px; pointer-events: auto; }
+        .btn-ui {
+            background: rgba(15, 23, 42, 0.85);
+            border: 2px solid #334155;
+            color: #f8fafc;
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 13px;
+            cursor: pointer;
+            backdrop-filter: blur(6px);
+            transition: all 0.15s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        .btn-ui:hover { background: #1e293b; border-color: #f59e0b; transform: translateY(-2px); }
+        .btn-ui:active { transform: translateY(0); }
+
+        .modal-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(11, 15, 25, 0.92);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-card {
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 18px;
+            width: 85%;
+            max-width: 680px;
+            max-height: 80%;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+        }
+        .modal-title { font-size: 22px; font-weight: 900; color: #f59e0b; letter-spacing: 0.5px; }
+        .grid-shop {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 12px;
+            overflow-y: auto;
+            padding: 6px;
+            max-height: 320px;
+        }
+        .shop-item {
+            background: #0f172a;
+            border: 2px solid #334155;
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 6px;
+        }
+        .shop-item.equipped { border-color: #10b981; background: rgba(16, 185, 129, 0.1); }
+        .shop-item-name { font-size: 13px; font-weight: 700; color: #f8fafc; }
+        .shop-item-preview { width: 44px; height: 44px; border-radius: 50%; margin: 4px 0; }
+        .btn-buy {
+            background: #f59e0b;
+            border: none;
+            color: #000;
+            font-weight: 800;
+            font-size: 11px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn-buy:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
+
+        .custom-row { display: flex; align-items: center; justify-content: space-between; width: 100%; margin: 8px 0; }
+        .color-swatch { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff; cursor: pointer; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <div class="top-nav">
+        <div class="nav-group">
+            <button class="btn-ui" onclick="openModal('shop-modal')">🏀 BALL SHOP</button>
+            <button class="btn-ui" onclick="openModal('locker-modal')">👕 LOCKER</button>
+            <button class="btn-ui" onclick="openModal('mode-modal')">🎮 MODES</button>
+        </div>
+        <div class="nav-group">
+            <button class="btn-ui" onclick="openModal('quests-modal')">📜 QUESTS</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas" width="960" height="540"></canvas>
+
+    <!-- SHOP MODAL -->
+    <div class="modal-overlay" id="shop-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-title">🏀 BALL SHOP</span>
+                <button class="btn-ui" onclick="closeModals()">❌ CLOSE</button>
+            </div>
+            <div class="grid-shop" id="shop-grid"></div>
+        </div>
+    </div>
+
+    <!-- LOCKER MODAL -->
+    <div class="modal-overlay" id="locker-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-title">👕 CHARACTER CUSTOMIZATION</span>
+                <button class="btn-ui" onclick="closeModals()">❌ CLOSE</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px; overflow-y: auto;">
+                <div class="custom-row">
+                    <span>Jersey Color:</span>
+                    <div id="jersey-colors" style="display:flex; gap:8px;"></div>
+                </div>
+                <div class="custom-row">
+                    <span>Skin Tone:</span>
+                    <div id="skin-colors" style="display:flex; gap:8px;"></div>
+                </div>
+                <div class="modal-title" style="font-size:16px; margin-top:10px;">Hats & Headwear</div>
+                <div class="grid-shop" id="hats-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODES MODAL -->
+    <div class="modal-overlay" id="mode-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-title">🎮 SELECT GAME MODE</span>
+                <button class="btn-ui" onclick="closeModals()">❌ CLOSE</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button class="btn-ui" style="padding:16px; text-align:left;" onclick="selectMode('arcade')">
+                    🔥 ARCADE STREAK <br><small style="color:#94a3b8">Endless high-score mode! Hoop moves & distance grows on streaks.</small>
+                </button>
+                <button class="btn-ui" style="padding:16px; text-align:left;" onclick="selectMode('time')">
+                    ⏱️ 60s TIME ATTACK <br><small style="color:#94a3b8">Score as many points as possible! Swishes add +2s bonus time.</small>
+                </button>
+                <button class="btn-ui" style="padding:16px; text-align:left;" onclick="selectMode('wind')">
+                    💨 WIND MASTER <br><small style="color:#94a3b8">Dynamic gusty crosswinds test your accuracy and curve control!</small>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QUESTS MODAL -->
+    <div class="modal-overlay" id="quests-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-title">📜 DAILY QUESTS & STATS</span>
+                <button class="btn-ui" onclick="closeModals()">❌ CLOSE</button>
+            </div>
+            <div id="quests-list" style="display:flex; flex-direction:column; gap:10px; overflow-y:auto;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// =============================================================================
+// 1. SAVE DATA & ECONOMY SYSTEM
+// =============================================================================
+const SAVE_KEY = 'basket_pro_extreme_v1';
+let userState = {
+    coins: 100,
+    xp: 0,
+    level: 1,
+    equippedBall: 'classic',
+    equippedHat: 'none',
+    jerseyColor: '#ef4444',
+    skinTone: '#fca5a5',
+    unlockedBalls: ['classic'],
+    unlockedHats: ['none'],
+    stats: { totalShots: 0, totalHits: 0, totalSwishes: 0, bestStreak: 0 }
+};
+
+function loadUserData() {
+    const data = localStorage.getItem(SAVE_KEY);
+    if (data) {
+        try { userState = Object.assign(userState, JSON.parse(data)); } catch(e){}
+    }
+}
+function saveUserData() {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(userState));
+}
+loadUserData();
+
+function addXP(amount) {
+    userState.xp += amount;
+    const nextLevelXP = userState.level * 150;
+    if (userState.xp >= nextLevelXP) {
+        userState.xp -= nextLevelXP;
+        userState.level++;
+        userState.coins += 200;
+        addFloatingText(CANVAS_WIDTH/2, 180, `LEVEL UP! Lv.${userState.level} (+200💰)`, '#facc15');
+        SFX.play('level');
+    }
+    saveUserData();
+}
+
+const BALL_SKINS = {
+    classic: { name: 'Classic Orange', price: 0, color: '#ea580c', trail: 'none' },
+    cyber: { name: 'Neon Cyber', price: 150, color: '#06b6d4', trail: 'cyan' },
+    gold: { name: 'Solid Gold', price: 450, color: '#facc15', trail: 'gold' },
+    fire: { name: 'Inferno Fire', price: 800, color: '#ef4444', trail: 'fire' },
+    rainbow: { name: 'Chroma RGB', price: 1500, color: 'rainbow', trail: 'rainbow' },
+    void: { name: 'Galactic Void', price: 2500, color: '#a855f7', trail: 'void' }
+};
+
+const HATS = {
+    none: { name: 'None', price: 0 },
+    headband: { name: 'Red Headband', price: 100, color: '#ef4444' },
+    cap: { name: 'Snapback Cap', price: 250, color: '#3b82f6' },
+    afro: { name: 'Retro Afro', price: 500, color: '#1c1917' },
+    crown: { name: 'Golden Crown', price: 1200, color: '#facc15' }
+};
+
+// =============================================================================
+// 2. AUDIO SYNTHESIZER ENGINE
+// =============================================================================
+const SFX = {
+    ctx: null,
+    init() {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    play(type, vol = 1) {
+        if (!this.ctx) return;
+        const t = this.ctx.currentTime;
+        if (type === 'swish') {
+            const bufSize = this.ctx.sampleRate * 0.3;
+            const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = this.ctx.createBufferSource(); noise.buffer = buf;
+            const filter = this.ctx.createBiquadFilter(); filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(1500, t);
+            const gain = this.ctx.createGain(); gain.gain.setValueAtTime(0.5 * vol, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+            noise.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+            noise.start(t);
+        } else if (type === 'rim' || type === 'board' || type === 'bounce') {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type === 'board' ? 'sine' : 'triangle';
+            osc.frequency.setValueAtTime(type === 'rim' ? 520 : 130, t);
+            osc.frequency.exponentialRampToValueAtTime(40, t + 0.15);
+            gain.gain.setValueAtTime(0.4 * vol, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(t); osc.stop(t + 0.15);
+        } else if (type === 'coin') {
+            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+            osc.type = 'sine'; osc.frequency.setValueAtTime(987.77, t);
+            osc.frequency.setValueAtTime(1318.51, t + 0.08);
+            gain.gain.setValueAtTime(0.25, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(t); osc.stop(t + 0.25);
+        } else if (type === 'level') {
+            [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                osc.frequency.setValueAtTime(freq, t + i * 0.08);
+                gain.gain.setValueAtTime(0.2, t + i * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.25);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(t + i * 0.08); osc.stop(t + i * 0.08 + 0.25);
+            });
+        }
+    }
+};
+
+// =============================================================================
+// 3. CANVAS & GLOBALS
+// =============================================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const CANVAS_WIDTH = 960;
+const CANVAS_HEIGHT = 540;
+const GROUND_Y = 460;
+const GRAVITY = 0.42;
+
+let currentMode = 'arcade';
+let score = 0;
+let streak = 0;
+let timeRemaining = 60;
+let windForce = 0;
+let screenShake = 0;
+
+let floatingTexts = [];
+let particles = [];
+let ballTrail = [];
+
+let hoop = { x: 770, y: 220, rimRadius: 26, backboardX: 810, backboardY: 130, backboardW: 12, backboardH: 110, vy: 0, baseY: 220 };
+
+function openModal(id) { document.getElementById(id).classList.add('active'); renderShopUI(); renderLockerUI(); renderQuestsUI(); }
+function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); }
+function selectMode(mode) { currentMode = mode; closeModals(); resetGame(); }
+
+// =============================================================================
+// 4. NET PHYSICS & BALL ENGINE
+// =============================================================================
+class Net {
+    constructor() { this.init(); }
+    init() {
+        this.nodes = []; this.links = [];
+        const rows = 5, cols = 5, width = hoop.rimRadius * 2 - 4, height = 48;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const nx = (hoop.x - hoop.rimRadius + 2) + (c / (cols - 1)) * width;
+                const ny = hoop.y + (r / (rows - 1)) * height;
+                this.nodes.push({ x: nx, y: ny, oldX: nx, oldY: ny, pinned: (r === 0) });
+            }
+        }
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const idx = r * cols + c;
+                if (c < cols - 1) this.links.push({ n1: this.nodes[idx], n2: this.nodes[idx + 1], dist: width / (cols - 1) });
+                if (r < rows - 1) this.links.push({ n1: this.nodes[idx], n2: this.nodes[idx + cols], dist: height / (rows - 1) });
+            }
+        }
+    }
+    update(ball) {
+        const cols = 5, width = hoop.rimRadius * 2 - 4;
+        for (let c = 0; c < cols; c++) {
+            this.nodes[c].x = (hoop.x - hoop.rimRadius + 2) + (c / (cols - 1)) * width;
+            this.nodes[c].y = hoop.y;
+        }
+        this.nodes.forEach(n => {
+            if (n.pinned) return;
+            const vx = (n.x - n.oldX) * 0.92, vy = (n.y - n.oldY) * 0.92;
+            n.oldX = n.x; n.oldY = n.y; n.x += vx; n.y += vy + 0.3;
+            const dx = n.x - ball.x, dy = n.y - ball.y, dist = Math.hypot(dx, dy);
+            if (dist < ball.radius + 4 && dist > 0) {
+                n.x = ball.x + (dx / dist) * (ball.radius + 4);
+                n.y = ball.y + (dy / dist) * (ball.radius + 4);
+            }
+        });
+        for (let i = 0; i < 4; i++) {
+            this.links.forEach(l => {
+                const dx = l.n2.x - l.n1.x, dy = l.n2.y - l.n1.y, dist = Math.hypot(dx, dy) || 0.001;
+                const delta = (dist - l.dist) / dist * 0.5;
+                if (!l.n1.pinned) { l.n1.x += dx * delta; l.n1.y += dy * delta; }
+                if (!l.n2.pinned) { l.n2.x -= dx * delta; l.n2.y -= dy * delta; }
+            });
+        }
+    }
+    draw() {
+        ctx.strokeStyle = 'rgba(241, 245, 249, 0.85)';
+        ctx.lineWidth = 1.8;
+        this.links.forEach(l => { ctx.beginPath(); ctx.moveTo(l.n1.x, l.n1.y); ctx.lineTo(l.n2.x, l.n2.y); ctx.stroke(); });
+    }
+}
+const net = new Net();
+
+class Basketball {
+    constructor() { this.radius = 16; this.reset(); }
+    reset() {
+        // FIXED ORIGIN: Store where the player stands!
+        this.originX = 220 - Math.min(streak * 12, 110);
+        this.originY = 380;
+        
+        this.x = this.originX;
+        this.y = this.originY;
+        this.prevY = this.y;
+        this.vx = 0; this.vy = 0; this.angle = 0; this.rotSpeed = 0;
+        this.isDragging = false; this.isFlight = false;
+        this.hasScored = false; this.touchedRim = false; this.touchedBoard = false; this.shotResolved = false;
+        ballTrail = [];
+    }
+    shoot(px, py) {
+        this.vx = px; this.vy = py; this.rotSpeed = -this.vx * 0.025;
+        this.isFlight = true; this.isDragging = false;
+        userState.stats.totalShots++;
+        SFX.play('bounce', 0.5);
+    }
+    update() {
+        if (!this.isFlight) return;
+        this.prevY = this.y;
+        this.vy += GRAVITY;
+        if (currentMode === 'wind') this.vx += windForce * 0.015;
+        this.x += this.vx; this.y += this.vy;
+        this.angle += this.rotSpeed;
+
+        ballTrail.push({ x: this.x, y: this.y, alpha: 1.0 });
+        if (ballTrail.length > 12) ballTrail.shift();
+
+        if (this.y + this.radius > GROUND_Y) {
+            this.y = GROUND_Y - this.radius;
+            this.vy = -this.vy * 0.65; this.vx *= 0.75;
+            if (Math.abs(this.vy) > 1.5) SFX.play('bounce', Math.abs(this.vy)/10);
+            if (!this.shotResolved) this.resolveShot(false);
+        }
+        if ((this.x > CANVAS_WIDTH + 50 || this.x < -50) && !this.shotResolved) this.resolveShot(false);
+        this.checkCollisions();
+    }
+    checkCollisions() {
+        const bbLeft = hoop.backboardX, bbRight = hoop.backboardX + hoop.backboardW;
+        const bbTop = hoop.backboardY, bbBottom = hoop.backboardY + hoop.backboardH;
+
+        if (this.x + this.radius > bbLeft && this.x - this.radius < bbRight && this.y + this.radius > bbTop && this.y - this.radius < bbBottom) {
+            if (this.vx > 0) {
+                this.x = bbLeft - this.radius; this.vx = -this.vx * 0.65; this.touchedBoard = true; SFX.play('board');
+            }
+        }
+
+        const pegs = [{ x: hoop.x - hoop.rimRadius, y: hoop.y }, { x: hoop.x + hoop.rimRadius, y: hoop.y }];
+        pegs.forEach(peg => {
+            const dx = this.x - peg.x, dy = this.y - peg.y, dist = Math.hypot(dx, dy), minDist = this.radius + 4;
+            if (dist < minDist && dist > 0) {
+                const nx = dx / dist, ny = dy / dist;
+                this.x = peg.x + nx * minDist; this.y = peg.y + ny * minDist;
+                const dot = this.vx * nx + this.vy * ny;
+                this.vx = (this.vx - 2 * dot * nx) * 0.72; this.vy = (this.vy - 2 * dot * ny) * 0.72;
+                this.touchedRim = true; SFX.play('rim', Math.min(1, Math.hypot(this.vx, this.vy) / 12));
+            }
+        });
+
+        const inRim = (this.x > hoop.x - hoop.rimRadius + 2) && (this.x < hoop.x + hoop.rimRadius - 2);
+        if (inRim && (this.prevY < hoop.y && this.y >= hoop.y) && !this.hasScored) {
+            this.hasScored = true; this.resolveShot(true);
+        }
+    }
+    resolveShot(success) {
+        if (this.shotResolved) return;
+        this.shotResolved = true;
+
+        if (success) {
+            userState.stats.totalHits++;
+            let pts = 1, earnedCoins = 10, typeText = "BASKET!", typeColor = "#38bdf8";
+
+            if (!this.touchedRim && !this.touchedBoard) {
+                pts = 3; earnedCoins = 35; typeText = "PERFECT SWISH!"; typeColor = "#facc15";
+                userState.stats.totalSwishes++;
+                if (currentMode === 'time') timeRemaining += 2;
+                screenShake = 12;
+            } else if (this.touchedBoard && !this.touchedRim) {
+                pts = 2; earnedCoins = 20; typeText = "BANK SHOT!"; typeColor = "#a855f7";
+            } else {
+                pts = 2; earnedCoins = 15; typeText = "RIM IN!"; typeColor = "#22c55e";
+            }
+
+            streak++;
+            if (streak > userState.stats.bestStreak) userState.stats.bestStreak = streak;
+
+            const mult = streak >= 3 ? 2 : 1;
+            score += pts * mult;
+            earnedCoins *= mult;
+            userState.coins += earnedCoins;
+            addXP(pts * 15);
+
+            SFX.play('swish'); SFX.play('coin');
+            addFloatingText(hoop.x, hoop.y - 30, `${typeText} +${pts * mult}PTS (+${earnedCoins}💰)`, typeColor);
+            createConfetti(hoop.x, hoop.y);
+
+        } else {
+            streak = 0;
+            addFloatingText(this.x, Math.min(this.y, GROUND_Y - 40), "MISS!", "#ef4444");
+        }
+
+        saveUserData();
+        setTimeout(() => {
+            this.reset(); net.init();
+            if (currentMode === 'wind') windForce = (Math.random() - 0.5) * 8;
+            if (streak >= 3 && currentMode === 'arcade') hoop.vy = 1.2; else { hoop.vy = 0; hoop.y = hoop.baseY; }
+        }, 1200);
+    }
+    draw() {
+        if (this.isDragging) {
+            const px = (this.dragStartX - this.dragCurrX) * 0.13;
+            const py = (this.dragStartY - this.dragCurrY) * 0.13;
+            ctx.strokeStyle = '#facc15'; ctx.lineWidth = 3; ctx.setLineDash([6, 6]);
+            let sx = this.x, sy = this.y, svx = px, svy = py;
+            ctx.beginPath(); ctx.moveTo(sx, sy);
+            for (let i = 0; i < 28; i++) {
+                sx += svx; sy += svy; svy += GRAVITY;
+                if (currentMode === 'wind') svx += windForce * 0.015;
+                ctx.lineTo(sx, sy);
+            }
+            ctx.stroke(); ctx.setLineDash([]);
+        }
+
+        const currentSkin = BALL_SKINS[userState.equippedBall] || BALL_SKINS.classic;
+        ballTrail.forEach((t, i) => {
+            ctx.fillStyle = currentSkin.color === 'rainbow' ? `hsl(${(Date.now()/5 + i*20)%360}, 100%, 50%)` : currentSkin.color;
+            ctx.globalAlpha = (i / ballTrail.length) * 0.5;
+            ctx.beginPath(); ctx.arc(t.x, t.y, this.radius * (i / ballTrail.length), 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 1.0;
+        });
+
+        ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+        ctx.fillStyle = currentSkin.color === 'rainbow' ? `hsl(${(Date.now()/5)%360}, 100%, 50%)` : currentSkin.color;
+        ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = '#1c1917'; ctx.beginPath();
+        ctx.moveTo(-this.radius, 0); ctx.lineTo(this.radius, 0);
+        ctx.moveTo(0, -this.radius); ctx.lineTo(0, this.radius); ctx.stroke();
+        ctx.restore();
+    }
+}
+const ball = new Basketball();
+
+function resetGame() {
+    score = 0; streak = 0; timeRemaining = 60;
+    if (currentMode === 'wind') windForce = (Math.random() - 0.5) * 8; else windForce = 0;
+    ball.reset(); net.init();
+}
+
+// =============================================================================
+// 5. CHARACTER SILHOUETTE RENDERER (FIXED POSITIONING)
+// =============================================================================
+function drawShooterCharacter() {
+    // Player stands planted at the free throw line origin!
+    const charX = ball.originX - 22;
+    const charY = GROUND_Y;
+
+    // Body & Jersey
+    ctx.fillStyle = userState.jerseyColor;
+    ctx.fillRect(charX - 10, charY - 60, 20, 32);
+
+    // Legs
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(charX - 9, charY - 28, 7, 28);
+    ctx.fillRect(charX + 2, charY - 28, 7, 28);
+
+    // Head
+    ctx.fillStyle = userState.skinTone;
+    ctx.beginPath(); ctx.arc(charX, charY - 72, 12, 0, Math.PI * 2); ctx.fill();
+
+    // Arm Logic: Aiming vs Release pose
+    ctx.strokeStyle = userState.skinTone; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); 
+    ctx.moveTo(charX, charY - 50); 
+
+    if (ball.isFlight) {
+        // Extended Follow-Through Release Pose
+        ctx.lineTo(charX + 25, charY - 80);
+    } else {
+        // Aiming arm tracks current ball position during drag
+        ctx.lineTo(ball.x, ball.y);
+    }
+    ctx.stroke();
+
+    // Render Equipped Hat
+    const hat = HATS[userState.equippedHat];
+    if (hat && hat.color) {
+        ctx.fillStyle = hat.color;
+        if (userState.equippedHat === 'headband') ctx.fillRect(charX - 12, charY - 80, 24, 5);
+        if (userState.equippedHat === 'cap') ctx.fillRect(charX - 14, charY - 82, 28, 6);
+        if (userState.equippedHat === 'crown') {
+            ctx.beginPath(); ctx.moveTo(charX - 12, charY - 82);
+            ctx.lineTo(charX - 12, charY - 94); ctx.lineTo(charX - 6, charY - 86);
+            ctx.lineTo(charX, charY - 96); ctx.lineTo(charX + 6, charY - 86);
+            ctx.lineTo(charX + 12, charY - 94); ctx.lineTo(charX + 12, charY - 82); ctx.fill();
+        }
+        if (userState.equippedHat === 'afro') {
+            ctx.beginPath(); ctx.arc(charX, charY - 78, 18, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+}
+
+setInterval(() => {
+    if (currentMode === 'time' && timeRemaining > 0 && !ball.isDragging) {
+        timeRemaining--;
+        if (timeRemaining === 0) {
+            addFloatingText(CANVAS_WIDTH/2, 200, "TIME'S UP! FINAL SCORE: " + score, "#f59e0b");
+        }
+    }
+}, 1000);
+
+// =============================================================================
+// 6. INPUT HANDLERS
+// =============================================================================
+function getCanvasCoords(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: (clientX - rect.left) * (CANVAS_WIDTH / rect.width), y: (clientY - rect.top) * (CANVAS_HEIGHT / rect.height) };
+}
+
+function handleStart(e) {
+    SFX.init();
+    if (ball.isFlight || (currentMode === 'time' && timeRemaining <= 0)) return;
+    const pos = getCanvasCoords(e);
+    if (Math.hypot(pos.x - ball.x, pos.y - ball.y) < ball.radius * 3) {
+        ball.isDragging = true; ball.dragStartX = pos.x; ball.dragStartY = pos.y;
+        ball.dragCurrX = pos.x; ball.dragCurrY = pos.y;
+    }
+}
+function handleMove(e) {
+    if (!ball.isDragging) return;
+    const pos = getCanvasCoords(e);
+    ball.dragCurrX = pos.x; ball.dragCurrY = pos.y;
+}
+function handleEnd() {
+    if (!ball.isDragging) return;
+    const px = (ball.dragStartX - ball.dragCurrX) * 0.13;
+    const py = (ball.dragStartY - ball.dragCurrY) * 0.13;
+    if (Math.hypot(px, py) > 2) ball.shoot(px, py); else ball.isDragging = false;
+}
+
+canvas.addEventListener('mousedown', handleStart); canvas.addEventListener('mousemove', handleMove); window.addEventListener('mouseup', handleEnd);
+canvas.addEventListener('touchstart', handleStart, { passive: true }); canvas.addEventListener('touchmove', handleMove, { passive: true }); window.addEventListener('touchend', handleEnd);
+
+// =============================================================================
+// 7. UI MODAL MANAGERS & SHOP RENDERERS
+// =============================================================================
+function renderShopUI() {
+    const grid = document.getElementById('shop-grid');
+    grid.innerHTML = '';
+    Object.keys(BALL_SKINS).forEach(key => {
+        const item = BALL_SKINS[key];
+        const isUnlocked = userState.unlockedBalls.includes(key);
+        const isEquipped = userState.equippedBall === key;
+
+        const div = document.createElement('div');
+        div.className = `shop-item ${isEquipped ? 'equipped' : ''}`;
+        div.innerHTML = `
+            <div class="shop-item-name">${item.name}</div>
+            <div class="shop-item-preview" style="background: ${item.color === 'rainbow' ? 'linear-gradient(45deg, red, yellow, green, cyan, blue, magenta)' : item.color}"></div>
+            <button class="btn-buy" ${isEquipped ? 'disabled' : ''} onclick="buyOrEquipBall('${key}')">
+                ${isEquipped ? 'EQUIPPED' : isUnlocked ? 'EQUIP' : item.price + ' 💰'}
+            </button>
+        `;
+        grid.appendChild(div);
+    });
+}
+
+function buyOrEquipBall(key) {
+    const item = BALL_SKINS[key];
+    if (userState.unlockedBalls.includes(key)) {
+        userState.equippedBall = key;
+    } else if (userState.coins >= item.price) {
+        userState.coins -= item.price;
+        userState.unlockedBalls.push(key);
+        userState.equippedBall = key;
+        SFX.play('coin');
+    }
+    saveUserData(); renderShopUI();
+}
+
+function renderLockerUI() {
+    const jerseyBox = document.getElementById('jersey-colors'); jerseyBox.innerHTML = '';
+    ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#1c1917'].forEach(c => {
+        const s = document.createElement('div'); s.className = 'color-swatch'; s.style.background = c;
+        s.onclick = () => { userState.jerseyColor = c; saveUserData(); }; jerseyBox.appendChild(s);
+    });
+
+    const skinBox = document.getElementById('skin-colors'); skinBox.innerHTML = '';
+    ['#fca5a5', '#f59e0b', '#78350f', '#06b6d4', '#facc15'].forEach(c => {
+        const s = document.createElement('div'); s.className = 'color-swatch'; s.style.background = c;
+        s.onclick = () => { userState.skinTone = c; saveUserData(); }; skinBox.appendChild(s);
+    });
+
+    const hatsGrid = document.getElementById('hats-grid'); hatsGrid.innerHTML = '';
+    Object.keys(HATS).forEach(key => {
+        const item = HATS[key];
+        const isUnlocked = userState.unlockedHats.includes(key);
+        const isEquipped = userState.equippedHat === key;
+
+        const div = document.createElement('div');
+        div.className = `shop-item ${isEquipped ? 'equipped' : ''}`;
+        div.innerHTML = `
+            <div class="shop-item-name">${item.name}</div>
+            <button class="btn-buy" ${isEquipped ? 'disabled' : ''} onclick="buyOrEquipHat('${key}')">
+                ${isEquipped ? 'EQUIPPED' : isUnlocked ? 'EQUIP' : item.price + ' 💰'}
+            </button>
+        `;
+        hatsGrid.appendChild(div);
+    });
+}
+
+function buyOrEquipHat(key) {
+    const item = HATS[key];
+    if (userState.unlockedHats.includes(key)) {
+        userState.equippedHat = key;
+    } else if (userState.coins >= item.price) {
+        userState.coins -= item.price;
+        userState.unlockedHats.push(key);
+        userState.equippedHat = key;
+        SFX.play('coin');
+    }
+    saveUserData(); renderLockerUI();
+}
+
+function renderQuestsUI() {
+    const box = document.getElementById('quests-list');
+    box.innerHTML = `
+        <div style="background:#0f172a; padding:12px; border-radius:10px;">
+            <b>🎯 TOTAL SHOTS FIRED:</b> ${userState.stats.totalShots}
+        </div>
+        <div style="background:#0f172a; padding:12px; border-radius:10px;">
+            <b>🔥 HIGHEST STREAK:</b> ${userState.stats.bestStreak}
+        </div>
+        <div style="background:#0f172a; padding:12px; border-radius:10px;">
+            <b>✨ SWISH MASTER:</b> ${userState.stats.totalSwishes} / 50 Swishes
+        </div>
+    `;
+}
+
+function createConfetti(x, y) {
+    for (let i = 0; i < 30; i++) {
+        particles.push({
+            x, y, vx: (Math.random() - 0.5) * 10, vy: Math.random() * -8 - 2, size: Math.random() * 6 + 3,
+            color: ['#facc15', '#38bdf8', '#ef4444', '#22c55e', '#a855f7'][Math.floor(Math.random() * 5)], life: 1.0
+        });
+    }
+}
+function addFloatingText(x, y, text, color) { floatingTexts.push({ x, y, text, color, alpha: 1.0, vy: -1.5 }); }
+
+// =============================================================================
+// 8. RENDER LOOP
+// =============================================================================
+function drawHUD() {
+    ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 2;
+    ctx.fillRect(16, 50, 260, 80); ctx.strokeRect(16, 50, 260, 80);
+
+    ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(`SCORE: ${score}`, 28, 74);
+    ctx.fillText(`COINS: ${userState.coins} 💰`, 150, 74);
+
+    ctx.fillStyle = '#facc15';
+    ctx.fillText(`LVL ${userState.level} (${userState.xp}/${userState.level * 150} XP)`, 28, 98);
+    ctx.fillText(`STREAK: ${streak} ${streak >= 3 ? '🔥 (x2)' : ''}`, 28, 120);
+
+    if (currentMode === 'time') {
+        ctx.fillStyle = timeRemaining <= 10 ? '#ef4444' : '#38bdf8';
+        ctx.font = '900 22px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(`TIME: ${timeRemaining}s`, CANVAS_WIDTH / 2, 40);
+    } else if (currentMode === 'wind') {
+        ctx.fillStyle = '#38bdf8'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(`WIND: ${windForce > 0 ? '➡️' : '⬅️'} ${Math.abs(windForce).toFixed(1)} MPH`, CANVAS_WIDTH / 2, 40);
+    }
+
+    floatingTexts.forEach((ft, idx) => {
+        ft.y += ft.vy; ft.alpha -= 0.02;
+        ctx.fillStyle = ft.color; ctx.globalAlpha = Math.max(0, ft.alpha);
+        ctx.font = '900 22px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(ft.text, ft.x, ft.y); ctx.globalAlpha = 1.0;
+        if (ft.alpha <= 0) floatingTexts.splice(idx, 1);
+    });
+}
+
+function gameLoop() {
+    ctx.save();
+    if (screenShake > 0) {
+        ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+        screenShake *= 0.85;
+    }
+
+    if (hoop.vy !== 0) {
+        hoop.y += hoop.vy; hoop.backboardY += hoop.vy;
+        if (hoop.y > hoop.baseY + 40 || hoop.y < hoop.baseY - 40) hoop.vy = -hoop.vy;
+    }
+
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.fillStyle = '#d97706'; ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, CANVAS_HEIGHT - GROUND_Y);
+
+    ctx.strokeStyle = '#b45309'; ctx.lineWidth = 2;
+    for (let y = GROUND_Y + 12; y < CANVAS_HEIGHT; y += 14) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke();
+    }
+
+    ctx.fillStyle = '#475569'; ctx.fillRect(hoop.backboardX + hoop.backboardW, hoop.backboardY + 20, 16, GROUND_Y - (hoop.backboardY + 20));
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)'; ctx.fillRect(hoop.backboardX, hoop.backboardY, hoop.backboardW, hoop.backboardH);
+    net.draw();
+    ctx.strokeStyle = '#ea580c'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(hoop.x - hoop.rimRadius, hoop.y); ctx.lineTo(hoop.x + hoop.rimRadius, hoop.y); ctx.stroke();
+
+    drawShooterCharacter();
+    ball.update(); net.update(ball); ball.draw();
+
+    particles.forEach((p, idx) => {
+        p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life -= 0.02;
+        ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillRect(p.x, p.y, p.size, p.size); ctx.globalAlpha = 1.0;
+        if (p.life <= 0) particles.splice(idx, 1);
+    });
+
+    drawHUD();
+    ctx.restore();
+    requestAnimationFrame(gameLoop);
+}
+
+net.init();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skybound Lantern</title>
+    <style>
+        :root { --ink: #143247; --paper: #fff9ed; --mint: #9de5ca; --coral: #ff785d; }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; min-height: 100%; overflow: hidden; background: #7dd4d1; font-family: Georgia, 'Times New Roman', serif; user-select: none; }
+        #game { position: relative; width: 100vw; height: 100vh; }
+        canvas { display: block; width: 100%; height: 100%; }
+        .hud { position: absolute; inset: 18px 20px auto; display: flex; justify-content: space-between; pointer-events: none; color: var(--ink); font-weight: 700; letter-spacing: .04em; }
+        .meter { min-width: 124px; padding: 10px 13px; background: rgba(255,249,237,.82); border: 2px solid var(--ink); box-shadow: 4px 4px 0 rgba(20,50,71,.2); }
+        .meter small { display: block; font: 11px Arial, sans-serif; letter-spacing: .13em; text-transform: uppercase; opacity: .68; }
+        .meter strong { font-size: 22px; }
+        #pause { position: absolute; right: 20px; bottom: 20px; border: 2px solid var(--ink); background: var(--paper); color: var(--ink); padding: 11px 15px; font: 700 13px Arial, sans-serif; cursor: pointer; box-shadow: 3px 3px 0 rgba(20,50,71,.25); }
+        #pause:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 rgba(20,50,71,.25); }
+        #screen { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(20,50,71,.18); }
+        .panel { width: min(440px, calc(100vw - 34px)); padding: 32px 28px 28px; text-align: center; color: var(--ink); background: var(--paper); border: 3px solid var(--ink); box-shadow: 9px 9px 0 rgba(20,50,71,.24); }
+        .panel h1 { margin: 0 0 9px; font-size: clamp(38px, 9vw, 64px); line-height: .9; letter-spacing: -.05em; }
+        .panel p { margin: 0 auto 22px; max-width: 310px; font: 15px/1.45 Arial, sans-serif; }
+        .action { border: 2px solid var(--ink); padding: 13px 22px; background: var(--coral); color: #fff; font: 800 14px Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; box-shadow: 4px 4px 0 var(--ink); }
+        .action:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+        .hint { margin-top: 17px; color: rgba(20,50,71,.66); font: 11px Arial, sans-serif; letter-spacing: .06em; }
+        @media (max-width: 520px) { .hud { inset: 12px 12px auto; } .meter { min-width: 105px; padding: 8px 10px; } .meter strong { font-size: 18px; } #pause { right: 12px; bottom: 12px; } }
+    </style>
+</head>
+<body>
+<div id="game">
+    <canvas id="canvas" aria-label="Skybound Lantern game"></canvas>
+    <div class="hud"><div class="meter"><small>Altitude</small><strong id="altitude">0 m</strong></div><div class="meter"><small>Sparks</small><strong id="sparks">0</strong></div><div class="meter"><small>Best</small><strong id="best">0 m</strong></div></div>
+    <button id="pause" type="button">Pause</button>
+    <div id="screen"><div class="panel"><h1 id="screenTitle">Skybound<br>Lantern</h1><p id="screenCopy">Guide Pip upward by steering in midair. Land on spring pads, collect sparks, and see how high your little light can travel.</p><button class="action" id="start" type="button">Begin ascent</button><div class="hint">A / D or arrow keys to steer - Space to pause</div></div></div>
+</div>
+<script>
+(() => {
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const screen = document.getElementById('screen');
+    const title = document.getElementById('screenTitle');
+    const copy = document.getElementById('screenCopy');
+    const start = document.getElementById('start');
+    const altitudeText = document.getElementById('altitude');
+    const sparksText = document.getElementById('sparks');
+    const bestText = document.getElementById('best');
+    let width = 0, height = 0, dpr = 1, last = 0, running = false, paused = false;
+    let cameraY = 0, score = 0, sparks = 0, best = Number(localStorage.getItem('skybound-best') || 0);
+    const keys = {};
+    const player = { x: 0, y: 0, vx: 0, vy: 0, w: 28, h: 35, squash: 0 };
+    let platforms = [], pickups = [], motes = [], clouds = [];
+    bestText.textContent = best + ' m';
+
+    function resize() { dpr = Math.min(devicePixelRatio || 1, 2); width = innerWidth; height = innerHeight; canvas.width = width * dpr; canvas.height = height * dpr; canvas.style.width = width + 'px'; canvas.style.height = height + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+    addEventListener('resize', resize); resize();
+    addEventListener('keydown', e => { keys[e.code] = true; if (['ArrowLeft','ArrowRight','KeyA','KeyD','Space'].includes(e.code)) e.preventDefault(); if (e.code === 'Space' && running) togglePause(); });
+    addEventListener('keyup', e => { keys[e.code] = false; });
+    document.getElementById('pause').addEventListener('click', togglePause);
+    start.addEventListener('click', () => { if (!running) reset(); else { running = true; paused = false; screen.style.display = 'none'; } });
+
+    function rng(seed) { return () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296; }
+    function reset() {
+        const random = rng(Date.now() & 0xffffffff); score = 0; sparks = 0; cameraY = 0; platforms = []; pickups = []; motes = []; clouds = [];
+        player.x = width / 2; player.y = height - 125; player.vx = 0; player.vy = -10;
+        platforms.push({ x: width / 2 - 80, y: height - 72, w: 160, h: 14, hue: 155, phase: 0 });
+        for (let i = 1; i < 13; i++) addPlatform(height - 72 - i * 92 - random() * 45, random);
+        for (let i = 0; i < 80; i++) motes.push({ x: Math.random() * width, y: Math.random() * height, r: Math.random() * 2 + 1, a: Math.random() * .6 + .15 });
+        running = true; paused = false; screen.style.display = 'none'; updateHud();
+    }
+    function addPlatform(y, random = Math.random) {
+        const w = 78 + random() * 72; const x = 18 + random() * Math.max(20, width - w - 36);
+        platforms.push({ x, y, w, h: 13, hue: 145 + random() * 40, phase: random() * 6.28 });
+        if (random() > .3) pickups.push({ x: x + w / 2, y: y - 25, taken: false, phase: random() * 6.28 });
+    }
+    function update(dt) {
+        const steer = (keys.ArrowLeft || keys.KeyA ? -1 : 0) + (keys.ArrowRight || keys.KeyD ? 1 : 0);
+        player.vx += steer * 0.55 * dt * 60; player.vx *= Math.pow(.88, dt * 60); player.vx = Math.max(-7, Math.min(7, player.vx));
+        const previousBottom = player.y + player.h; player.vy += .38 * dt * 60; player.x += player.vx * dt * 60; player.y += player.vy * dt * 60;
+        if (player.x < -player.w) player.x = width; if (player.x > width) player.x = -player.w;
+        if (player.vy > 0) for (const platform of platforms) if (player.x + player.w > platform.x && player.x < platform.x + platform.w && previousBottom <= platform.y + 3 && player.y + player.h >= platform.y) { player.y = platform.y - player.h; player.vy = -11.2; player.squash = 1; }
+        for (const item of pickups) if (!item.taken && Math.hypot(player.x + player.w / 2 - item.x, player.y + player.h / 2 - item.y) < 25) { item.taken = true; sparks++; }
+        const target = height * .42; if (player.y < target) { const shift = target - player.y; player.y = target; cameraY += shift; platforms.forEach(p => p.y += shift); pickups.forEach(p => p.y += shift); score = Math.max(score, Math.floor(cameraY / 10)); }
+        platforms = platforms.filter(p => p.y < height + 45); pickups = pickups.filter(p => p.y < height + 45 && !p.taken);
+        while (platforms.length < 13) { const highest = Math.min(...platforms.map(p => p.y)); addPlatform(highest - 90 - Math.random() * 45); }
+        player.squash *= Math.pow(.8, dt * 60); updateHud();
+        if (player.y > height + 80) endGame();
+    }
+    function updateHud() { altitudeText.textContent = score + ' m'; sparksText.textContent = sparks; bestText.textContent = best + ' m'; }
+    function endGame() { running = false; if (score > best) { best = score; localStorage.setItem('skybound-best', best); } title.textContent = 'The light fell'; copy.textContent = 'Pip reached ' + score + ' metres and gathered ' + sparks + ' sparks. Ready to climb again?'; start.textContent = 'Try again'; screen.style.display = 'grid'; updateHud(); }
+    function togglePause() { if (!running) return; paused = !paused; screen.style.display = paused ? 'grid' : 'none'; title.textContent = 'Ascent paused'; copy.textContent = 'The air is still. Pip is waiting for your next move.'; start.textContent = 'Resume'; }
+
+    function draw() {
+        const gradient = ctx.createLinearGradient(0, 0, 0, height); gradient.addColorStop(0, '#78c5d0'); gradient.addColorStop(.58, '#b8e3c2'); gradient.addColorStop(1, '#f9d58b'); ctx.fillStyle = gradient; ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = 'rgba(255,255,225,.28)'; for (const mote of motes) { const y = (mote.y + cameraY * .12) % height; ctx.globalAlpha = mote.a; ctx.beginPath(); ctx.arc(mote.x, y < 0 ? y + height : y, mote.r, 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1;
+        drawClouds(); for (const item of pickups) drawSpark(item); for (const platform of platforms) drawPlatform(platform); drawPlayer();
+    }
+    function drawClouds() { ctx.fillStyle = 'rgba(255,249,237,.34)'; for (let i = 0; i < 6; i++) { const x = (i * 193 + 50) % (width + 160) - 80; const y = (i * 137 + cameraY * .2) % (height + 180) - 90; ctx.beginPath(); ctx.ellipse(x, y, 76, 19, 0, 0, Math.PI * 2); ctx.ellipse(x + 35, y - 12, 42, 24, 0, 0, Math.PI * 2); ctx.fill(); } }
+    function drawPlatform(p) { const bob = Math.sin(performance.now() / 450 + p.phase) * 1.5; ctx.fillStyle = '#143247'; ctx.fillRect(p.x + 3, p.y + bob + 4, p.w, p.h); ctx.fillStyle = `hsl(${p.hue}, 48%, 55%)`; ctx.fillRect(p.x, p.y + bob, p.w, p.h - 3); ctx.fillStyle = '#f8e8ae'; ctx.fillRect(p.x + 8, p.y + bob + 2, p.w - 16, 3); }
+    function drawSpark(item) { const pulse = 1 + Math.sin(performance.now() / 180 + item.phase) * .12; ctx.save(); ctx.translate(item.x, item.y); ctx.rotate(Math.PI / 4); ctx.scale(pulse, pulse); ctx.fillStyle = '#fff3a6'; ctx.fillRect(-7, -7, 14, 14); ctx.fillStyle = '#ff9d59'; ctx.fillRect(-3, -3, 6, 6); ctx.restore(); }
+    function drawPlayer() { const x = player.x + player.w / 2, y = player.y + player.h / 2; ctx.save(); ctx.translate(x, y); ctx.rotate(player.vx * .035); ctx.scale(1 + player.squash * .12, 1 - player.squash * .1); ctx.fillStyle = '#143247'; ctx.fillRect(-14, -13, 28, 30); ctx.fillStyle = '#ff785d'; ctx.fillRect(-10, -9, 20, 20); ctx.fillStyle = '#ffe7a5'; ctx.fillRect(-7, -5, 14, 12); ctx.fillStyle = '#143247'; ctx.fillRect(-4, -2, 3, 4); ctx.fillRect(3, -2, 3, 4); ctx.strokeStyle = '#143247'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(0, -22); ctx.stroke(); ctx.fillStyle = '#f6cf70'; ctx.beginPath(); ctx.arc(0, -24, 4, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+    function frame(now) { const dt = Math.min(.032, (now - last) / 1000 || .016); last = now; if (running && !paused) update(dt); draw(); requestAnimationFrame(frame); }
+    requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

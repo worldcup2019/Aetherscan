@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ÆtherScan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0e1a;
+            --panel: rgba(255,255,255,0.045);
+            --panel-hover: rgba(255,255,255,0.075);
+            --border: rgba(255,255,255,0.10);
+            --text: #eef1f8;
+            --text-dim: #9aa4bf;
+            --text-faint: #6b7490;
+            --accent1: #22d3ee; /* cyan */
+            --accent2: #a78bfa; /* violet */
+            --accent3: #f472b6; /* pink */
+            --aurora-gradient: linear-gradient(120deg, var(--accent1), var(--accent2) 50%, var(--accent3));
+            --glow: 0 0 0 1px rgba(167,139,250,0.25), 0 8px 30px rgba(34,211,238,0.15);
+        }
+        /* ---------- THEMES ---------- */
+        /* Each theme is just a re-declaration of the same custom properties
+           above, scoped to a data-theme attribute on <body>. Everything
+           else in this file (buttons, cards, the aurora blobs) reads these
+           variables, so a theme swap needs zero other CSS changes. */
+        body[data-theme="ocean"] {
+            --bg: #061018; --accent1: #38bdf8; --accent2: #2dd4bf; --accent3: #818cf8;
+        }
+        body[data-theme="sunset"] {
+            --bg: #150a12; --accent1: #fb923c; --accent2: #f472b6; --accent3: #facc15;
+        }
+        body[data-theme="forest"] {
+            --bg: #071410; --accent1: #34d399; --accent2: #a3e635; --accent3: #2dd4bf;
+        }
+        body[data-theme="mono"] {
+            --bg: #0b0b0d; --accent1: #d4d4d8; --accent2: #a1a1aa; --accent3: #ffffff;
+        }
+        body[data-theme="light"] {
+            --bg: #f4f6fb; --panel: rgba(10,14,26,0.04); --panel-hover: rgba(10,14,26,0.07);
+            --border: rgba(10,14,26,0.12); --text: #0f1424; --text-dim: #454e6b; --text-faint: #6b7490;
+            --accent1: #0891b2; --accent2: #7c3aed; --accent3: #db2777;
+            --glow: 0 0 0 1px rgba(124,58,237,0.18), 0 8px 30px rgba(8,145,178,0.12);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', Arial, sans-serif; }
+        html, body { height: 100%; }
+        body { background: var(--bg); color: var(--text); position: relative; overflow-x: hidden; transition: background .25s ease, color .25s ease; }
+
+        /* ---------- THEME PICKER BUTTON + POPOVER ---------- */
+        .theme-picker { position: relative; }
+        .theme-toggle-btn {
+            width: 42px; height: 42px; border-radius: 50%; padding: 0; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 18px;
+            background: var(--panel); border: 1px solid var(--border); box-shadow: none;
+        }
+        .theme-toggle-btn:hover { background: var(--panel-hover); transform: none; box-shadow: var(--glow); }
+        .theme-popover {
+            position: absolute; top: calc(100% + 10px); right: 0; z-index: 20; display: none;
+            background: #0f1424; border: 1px solid var(--border); border-radius: 14px; padding: 14px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.5); min-width: 190px;
+        }
+        body[data-theme="light"] .theme-popover { background: #ffffff; box-shadow: 0 12px 40px rgba(20,20,40,0.18); }
+        .theme-popover.open { display: block; }
+        .theme-popover-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-faint); margin-bottom: 10px; font-weight: 700; }
+        .swatch-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+        .swatch {
+            width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent;
+            transition: transform .12s ease, border-color .12s ease;
+        }
+        .swatch:hover { transform: scale(1.12); }
+        .swatch.active { border-color: var(--text); }
+        .swatch[data-theme="default"] { background: linear-gradient(120deg, #22d3ee, #a78bfa 50%, #f472b6); }
+        .swatch[data-theme="ocean"] { background: linear-gradient(120deg, #38bdf8, #2dd4bf 50%, #818cf8); }
+        .swatch[data-theme="sunset"] { background: linear-gradient(120deg, #fb923c, #f472b6 50%, #facc15); }
+        .swatch[data-theme="forest"] { background: linear-gradient(120deg, #34d399, #a3e635 50%, #2dd4bf); }
+        .swatch[data-theme="mono"] { background: linear-gradient(120deg, #d4d4d8, #a1a1aa 50%, #ffffff); }
+        .swatch[data-theme="light"] { background: linear-gradient(120deg, #f4f6fb, #e0e7ff 50%, #ffffff); border: 2px solid var(--border); }
+
+        /* ---------- ACCOUNT WIDGET ---------- */
+        .account-widget { position: relative; flex-shrink: 0; }
+        .sign-in-btn {
+            display: inline-block; padding: 10px 20px; border-radius: 22px; font-size: 13px; font-weight: 700;
+            color: var(--text); border: 1px solid var(--border); background: var(--panel); text-decoration: none;
+            transition: background .15s ease;
+        }
+        .sign-in-btn:hover { background: var(--panel-hover); }
+        .account-avatar-btn {
+            width: 42px; height: 42px; border-radius: 50%; border: none; cursor: pointer;
+            background: var(--aurora-gradient); color: #0a0e1a; font-weight: 800; font-size: 16px;
+        }
+        .account-popover {
+            position: absolute; top: calc(100% + 10px); right: 0; z-index: 20; display: none;
+            background: #0f1424; border: 1px solid var(--border); border-radius: 14px; padding: 16px;
+            min-width: 180px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); text-align: center;
+        }
+        body[data-theme="light"] .account-popover { background: #ffffff; box-shadow: 0 12px 40px rgba(20,20,40,0.18); }
+        .account-popover.open { display: block; }
+        .account-popover-name { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.5; }
+        .account-settings-btn {
+            display: block; width: 100%; padding: 9px; border-radius: 9px; border: 1px solid var(--border);
+            background: var(--panel); color: var(--text); font-weight: 700; font-size: 13px; cursor: pointer;
+            text-decoration: none; box-sizing: border-box; margin-bottom: 8px;
+        }
+        .account-settings-btn:hover { background: var(--panel-hover); }
+        .account-signout-btn {
+            width: 100%; padding: 9px; border-radius: 9px; border: 1px solid var(--border); background: var(--panel);
+            color: var(--text); font-weight: 700; font-size: 13px; cursor: pointer;
+        }
+        .account-signout-btn:hover { background: var(--panel-hover); }
+
+        /* ---------- AMBIENT AURORA BACKGROUND ---------- */
+        .aurora { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+        .aurora span { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.35; }
+        .aurora span:nth-child(1) { width: 480px; height: 480px; background: var(--accent1); top: -160px; left: -120px; animation: drift1 22s ease-in-out infinite alternate; }
+        .aurora span:nth-child(2) { width: 520px; height: 520px; background: var(--accent2); bottom: -200px; right: -160px; animation: drift2 26s ease-in-out infinite alternate; }
+        .aurora span:nth-child(3) { width: 380px; height: 380px; background: var(--accent3); top: 40%; left: 50%; animation: drift3 30s ease-in-out infinite alternate; }
+        @keyframes drift1 { to { transform: translate(60px, 40px) scale(1.15); } }
+        @keyframes drift2 { to { transform: translate(-50px, -30px) scale(1.1); } }
+        @keyframes drift3 { to { transform: translate(-70px, 50px) scale(0.9); } }
+
+        .page { max-width: 1120px; margin: 0 auto; padding: 0 32px 50px; position: relative; }
+
+        /* ---------- HEADER / LOGO / SEARCH BAR ---------- */
+        .top-bar { display: flex; align-items: center; gap: 32px; padding: 24px 0; }
+        .page.is-homepage .top-bar { flex-direction: column; justify-content: center; min-height: 60vh; gap: 30px; padding-top: 0; }
+
+        .logo-mark {
+            text-decoration: none; display: inline-flex; font-family: 'Poppins', sans-serif;
+            font-weight: 800; letter-spacing: -1px; white-space: nowrap;
+            background: var(--aurora-gradient); background-size: 200% auto;
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+            animation: shimmer 6s linear infinite;
+        }
+        @keyframes shimmer { to { background-position: 200% center; } }
+        .top-bar .logo-mark { font-size: 27px; }
+        .page.is-homepage .logo-mark { font-size: 66px; letter-spacing: -2.5px; }
+
+        .search-form { flex-grow: 1; max-width: 600px; }
+        .page.is-homepage .search-form { width: 100%; max-width: 580px; }
+        .search-form-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+        .search-box {
+            display: flex; align-items: center; gap: 12px; width: 100%;
+            border: 1px solid var(--border); border-radius: 26px; padding: 0 20px;
+            background: var(--panel); backdrop-filter: blur(16px);
+            transition: box-shadow .2s ease, border-color .2s ease, background .2s ease;
+        }
+        .search-box:focus-within { border-color: rgba(167,139,250,0.5); box-shadow: var(--glow); background: var(--panel-hover); }
+        .search-box svg { flex-shrink: 0; color: var(--text-faint); }
+        input[type="text"] { flex-grow: 1; padding: 13px 0; font-size: 16px; border: none; outline: none; background: transparent; min-width: 120px; color: var(--text); }
+        input[type="text"]::placeholder { color: var(--text-faint); }
+
+        .league-select {
+            padding: 12px 18px; font-size: 14px; border: 1px solid var(--border); border-radius: 24px;
+            outline: none; background: var(--panel); color: var(--text); cursor: pointer; backdrop-filter: blur(16px);
+        }
+        .league-select option { background: #0f1424; color: var(--text); }
+
+        button {
+            padding: 13px 26px; font-size: 14px; color: #0a0e1a; border: none; border-radius: 24px;
+            cursor: pointer; font-weight: 700; background: var(--aurora-gradient); background-size: 200% auto;
+            transition: background-position .3s ease, transform .15s ease, box-shadow .15s ease;
+            box-shadow: 0 4px 18px rgba(167,139,250,0.25);
+        }
+        button:hover { background-position: 100% center; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(167,139,250,0.4); }
+        .page.is-homepage button { margin-top: 4px; }
+
+        /* ---------- TABS ---------- */
+        .tabs-bar { display: flex; gap: 30px; margin-bottom: 26px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+
+        /* ---------- HOMEPAGE WIDGETS: weather, shortcuts, recent searches ---------- */
+        .homepage-widgets { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-top: 22px; }
+        .weather-widget { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 20px; padding: 8px 18px; font-size: 14px; }
+        .weather-temp { font-weight: 700; color: var(--text); }
+        .weather-cond { color: var(--text-dim); }
+        .shortcuts-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+        .shortcut-chip { text-decoration: none; font-size: 13px; font-weight: 600; color: var(--text-dim); background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 8px 16px; transition: color .15s ease, border-color .15s ease; }
+        .shortcut-chip:hover { color: var(--text); border-color: rgba(167,139,250,0.4); }
+        .recent-searches-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; font-size: 12px; }
+        .recent-label { color: var(--text-faint); }
+        .recent-chip { text-decoration: none; color: var(--text-dim); background: transparent; border: 1px solid var(--border); border-radius: 14px; padding: 5px 12px; }
+        .recent-chip:hover { color: var(--text); }
+
+        /* ---------- NEWS ---------- */
+        .news-list { display: flex; flex-direction: column; gap: 2px; max-width: 720px; }
+        .news-item { display: block; text-decoration: none; padding: 14px 4px; border-bottom: 1px solid var(--border); }
+        .news-item-title { color: var(--text); font-size: 16px; font-weight: 600; line-height: 1.4; }
+        .news-item:hover .news-item-title { color: var(--accent1); }
+        .news-item-meta { color: var(--text-faint); font-size: 12px; margin-top: 4px; }
+
+        /* ---------- AI CHAT ---------- */
+        .chat-panel { max-width: 720px; display: flex; flex-direction: column; height: calc(100vh - 260px); min-height: 400px; }
+        .chat-setup-note { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+        .chat-setup-title { font-weight: 700; font-size: 16px; color: var(--text); margin-bottom: 10px; }
+        .chat-setup-note code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 5px; font-size: 13px; }
+        .chat-setup-note a { color: var(--accent1); text-decoration: none; }
+        .chat-setup-note a:hover { text-decoration: underline; }
+        .chat-setup-note p { margin-top: 8px; }
+        .chat-messages { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 6px 2px 20px; }
+        .chat-msg { display: flex; }
+        .chat-msg-user { justify-content: flex-end; }
+        .chat-msg-assistant { justify-content: flex-start; }
+        .chat-bubble { max-width: 80%; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
+        .chat-msg-assistant .chat-bubble { background: var(--panel); border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 4px; }
+        .chat-msg-user .chat-bubble { background: var(--aurora-gradient); color: #0a0e1a; font-weight: 600; border-bottom-right-radius: 4px; }
+        .chat-sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .chat-source-chip { font-size: 11px; padding: 4px 10px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--accent2); text-decoration: none; }
+        .chat-source-chip:hover { background: var(--panel-hover); text-decoration: underline; }
+        .chat-typing { color: var(--text-faint); font-size: 13px; font-style: italic; padding: 0 4px; }
+        .chat-input-row { display: flex; gap: 10px; padding-top: 14px; border-top: 1px solid var(--border); }
+        .chat-input-row input {
+            flex-grow: 1; padding: 13px 18px; border-radius: 24px; border: 1px solid var(--border);
+            background: var(--panel); color: var(--text); font-size: 14px; outline: none;
+        }
+        .chat-input-row input:focus { border-color: var(--accent2); }
+        .chat-input-row button {
+            padding: 0 24px; border-radius: 24px; border: none; background: var(--aurora-gradient);
+            color: #0a0e1a; font-weight: 700; font-size: 14px; cursor: pointer;
+        }
+        .chat-input-row button:hover { filter: brightness(1.08); }
+        .chat-input-row button:disabled { opacity: 0.6; cursor: default; }
+
+        /* ---------- MOVIES ---------- */
+        .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+        .movie-card { display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; background: var(--panel); border: 1px solid var(--border); transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
+        .movie-card:hover { transform: translateY(-3px); border-color: var(--accent2); box-shadow: var(--glow); }
+        .movie-poster-wrap { width: 100%; aspect-ratio: 2 / 3; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .movie-poster-wrap img { width: 100%; height: 100%; object-fit: cover; }
+        .movie-poster-placeholder { font-size: 40px; color: var(--text-faint); }
+        .movie-info { padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 6px; flex-grow: 1; }
+        .movie-title { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.35; }
+        .movie-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-faint); }
+        .movie-rating { color: var(--accent3); font-weight: 700; }
+        .movie-overview { font-size: 12px; color: var(--text-dim); line-height: 1.5; display: -webkit-box; line-clamp: 3; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .movie-providers { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; padding-top: 6px; }
+        .movie-provider-chip { font-size: 10px; padding: 3px 8px; border-radius: 10px; background: rgba(255,255,255,0.06); color: var(--text-dim); }
+        .movie-links { display: flex; gap: 8px; margin-top: 8px; }
+        .movie-link-btn {
+            flex: 1; text-align: center; font-size: 12px; font-weight: 700; padding: 7px 0; border-radius: 8px;
+            text-decoration: none; border: 1px solid var(--border); color: var(--text-dim);
+        }
+        .movie-link-btn:hover { background: var(--panel-hover); color: var(--text); }
+        .movie-link-btn.primary { background: var(--aurora-gradient); color: #0a0e1a; border-color: transparent; }
+        .movie-setup-note { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; font-size: 14px; color: var(--text-dim); line-height: 1.6; max-width: 640px; }
+        .movie-setup-note code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 5px; font-size: 13px; }
+        .movie-setup-note a { color: var(--accent1); text-decoration: none; }
+        .movie-setup-note a:hover { text-decoration: underline; }
+
+        .tab-link { text-decoration: none; color: var(--text-dim); font-size: 13px; font-weight: 600; padding-bottom: 13px; letter-spacing: 0.3px; transition: color .15s ease; }
+        .tab-link:hover { color: var(--text); }
+        .tab-link.active { color: var(--accent1); border-bottom: 2px solid var(--accent1); }
+
+        .ai-overview-box {
+            background: var(--panel); backdrop-filter: blur(16px); border: 1px solid var(--border);
+            border-radius: 16px; padding: 22px; margin-bottom: 30px; line-height: 1.65; font-size: 15px;
+            color: var(--text); border-left: 3px solid var(--accent2);
+        }
+        .ai-title { font-weight: 700; font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; background: var(--aurora-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+        .results-layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 45px; width: 100%; }
+        .result-item { margin-bottom: 28px; }
+        .result-source { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--accent2); background: rgba(167,139,250,0.12); border-radius: 6px; padding: 2px 8px; margin-bottom: 6px; }
+        .result-url { font-size: 13px; color: var(--accent1); text-decoration: none; display: block; margin-bottom: 3px; word-break: break-all; }
+        .result-title { font-size: 19px; color: var(--text); text-decoration: none; font-weight: 600; display: block; margin-bottom: 4px; }
+        .result-title:hover { color: var(--accent2); text-decoration: underline; }
+        .result-snippet { font-size: 14px; color: var(--text-dim); line-height: 1.55; }
+
+        .image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
+        .image-box { width: 100%; height: 160px; object-fit: cover; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0,0,0,0.3); background: var(--panel); }
+
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+
+        .video-card { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--panel); backdrop-filter: blur(16px); text-decoration: none; display: block; color: inherit; transition: transform .15s ease, box-shadow .15s ease; }
+        .video-card:hover { transform: translateY(-3px); box-shadow: var(--glow); border-color: rgba(167,139,250,0.4); }
+        .video-thumb-wrap { width: 100%; height: 150px; background: linear-gradient(135deg, rgba(34,211,238,0.15), rgba(167,139,250,0.15)); display: flex; align-items: center; justify-content: center; color: var(--text); font-size: 40px; border-bottom: 1px solid var(--border); }
+        .video-meta-box { padding: 14px; }
+        .video-card-title { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.4; margin-bottom: 4px; }
+        .video-card-source { font-size: 12px; color: var(--text-faint); }
+
+        .infobox-card { border: 1px solid var(--border); border-radius: 16px; padding: 26px; background: var(--panel); backdrop-filter: blur(16px); position: sticky; top: 20px; }
+        .infobox-image { width: 100%; max-width: 220px; display: block; margin: 0 auto 16px; border-radius: 10px; background: #fff; padding: 10px; }
+        .infobox-title { font-size: 24px; font-weight: 700; margin-bottom: 4px; font-family: 'Poppins', sans-serif; }
+        .infobox-sub { font-size: 14px; color: var(--text-dim); margin-bottom: 12px; font-style: italic; }
+        .infobox-desc { font-size: 14px; line-height: 1.6; color: var(--text-dim); }
+
+        /* ---------- ON THIS DAY (homepage widget) ---------- */
+        .on-this-day { max-width: 640px; margin: 26px auto 0; display: flex; flex-direction: column; gap: 8px; }
+        .on-this-day-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-faint); text-align: center; margin-bottom: 4px; }
+        .otd-item { display: flex; gap: 10px; text-decoration: none; padding: 9px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); transition: background .15s ease; }
+        .otd-item:hover { background: var(--panel-hover); }
+        .otd-year { font-weight: 700; color: var(--accent1); font-size: 13px; flex-shrink: 0; min-width: 44px; }
+        .otd-text { font-size: 13px; color: var(--text-dim); line-height: 1.45; }
+
+        /* ---------- COMPARE MODE ---------- */
+        .compare-box { border: 1px solid var(--border); border-radius: 16px; background: var(--panel); backdrop-filter: blur(16px); overflow: hidden; margin-bottom: 30px; border-left: 3px solid var(--accent3); }
+        .compare-header { display: grid; grid-template-columns: 1fr 1fr; }
+        .compare-header div { padding: 16px 20px; font-weight: 800; font-size: 17px; font-family: 'Poppins', sans-serif; text-align: center; }
+        .compare-header div:first-child { color: var(--accent1); border-right: 1px solid var(--border); }
+        .compare-header div:last-child { color: var(--accent3); }
+        .compare-row { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--border); }
+        .compare-row .compare-cell { padding: 13px 20px; font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+        .compare-row .compare-cell:first-child { border-right: 1px solid var(--border); }
+        .compare-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-faint); margin-bottom: 4px; display: block; }
+        .compare-verdict { padding: 16px 20px; font-size: 14px; color: var(--text); border-top: 1px solid var(--border); background: rgba(244,114,182,0.06); }
+        .compare-verdict strong { color: var(--accent3); }
+
+        .empty-note { color: var(--text-faint); font-size: 13px; padding: 16px 0; text-align: center; }
+
+        /* ---------- AUTOCOMPLETE ---------- */
+        .search-box-wrap { position: relative; flex-grow: 1; min-width: 200px; }
+        .autocomplete-list {
+            position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 30; display: none;
+            background: #0f1424; border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+        }
+        body[data-theme="light"] .autocomplete-list { background: #ffffff; box-shadow: 0 12px 30px rgba(20,20,40,0.15); }
+        .autocomplete-list.open { display: block; }
+        .autocomplete-item { padding: 11px 18px; font-size: 14px; color: var(--text-dim); cursor: pointer; }
+        .autocomplete-item:hover, .autocomplete-item.highlighted { background: var(--panel-hover); color: var(--text); }
+
+        /* ---------- SPELL SUGGESTION ---------- */
+        .spell-suggestion { font-size: 14px; color: var(--text-dim); margin-bottom: 18px; }
+        .spell-suggestion a { color: var(--accent1); font-weight: 700; text-decoration: none; font-style: italic; }
+        .spell-suggestion a:hover { text-decoration: underline; }
+
+        /* ---------- FILTER CHIPS ---------- */
+        .filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+        .filter-label { font-size: 12px; color: var(--text-faint); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-right: 4px; }
+        .filter-chip {
+            font-size: 12px; padding: 6px 13px; border-radius: 16px; border: 1px solid var(--border);
+            background: var(--panel); color: var(--text-dim); text-decoration: none; font-weight: 600;
+            transition: background .15s ease, color .15s ease, border-color .15s ease;
+        }
+        .filter-chip:hover { background: var(--panel-hover); color: var(--text); }
+        .filter-chip.active { background: var(--aurora-gradient); color: #0a0e1a; border-color: transparent; }
+
+        /* ---------- RELATED SEARCH CHIPS ---------- */
+        .related-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+        .related-chip {
+            font-size: 12px; padding: 6px 12px; border-radius: 14px; border: 1px solid var(--border);
+            background: rgba(255,255,255,0.04); color: var(--accent2); text-decoration: none; font-weight: 600;
+        }
+        .related-chip:hover { background: var(--panel-hover); text-decoration: underline; }
+
+        /* ---------- INFINITE SCROLL / LOADING ---------- */
+        .scroll-sentinel { height: 40px; display: flex; align-items: center; justify-content: center; }
+        .mini-spinner {
+            width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border);
+            border-top-color: var(--accent1); animation: spin .7s linear infinite; display: none;
+        }
+        .mini-spinner.spinning { display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .page-loading-overlay {
+            position: fixed; inset: 0; z-index: 999; background: var(--bg); opacity: 0; pointer-events: none;
+            display: flex; align-items: center; justify-content: center; transition: opacity .15s ease;
+        }
+        .page-loading-overlay.active { opacity: 0.85; pointer-events: all; }
+        .page-loading-overlay .mini-spinner { display: inline-block; width: 34px; height: 34px; border-width: 3px; }
+
+        /* ---------- SPORTS ---------- */
+        .sports-hero {
+            background: linear-gradient(135deg, #0f2027 0%, #22d3ee1a 40%, #a78bfa33 100%), var(--panel);
+            border: 1px solid var(--border); border-radius: 18px; padding: 28px 32px; margin-bottom: 28px;
+            color: var(--text); display: flex; align-items: center; justify-content: space-between;
+            backdrop-filter: blur(16px); box-shadow: 0 10px 30px rgba(34,211,238,0.1);
+        }
+        .sports-hero h1 { font-size: 27px; font-weight: 800; letter-spacing: -0.3px; font-family: 'Poppins', sans-serif; }
+        .sports-hero .sub { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+        .sports-hero .live-pill {
+            background: rgba(244,114,182,0.15); border: 1px solid rgba(244,114,182,0.4); color: #f472b6;
+            padding: 9px 18px; border-radius: 20px; font-size: 13px; font-weight: 700;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .pulse-dot { width: 9px; height: 9px; border-radius: 50%; background: #f472b6; animation: pulse 1.4s infinite; }
+        @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(244,114,182,0.6);} 70%{box-shadow:0 0 0 8px rgba(244,114,182,0);} 100%{box-shadow:0 0 0 0 rgba(244,114,182,0);} }
+
+        .team-header { display: flex; align-items: center; gap: 18px; margin-bottom: 26px; }
+        .team-logo-lg { width: 60px; height: 60px; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(34,211,238,0.3)); }
+        .team-header h1 { font-size: 27px; font-weight: 800; font-family: 'Poppins', sans-serif; }
+        .team-header .league-tag { color: var(--text-dim); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+
+        .section-title {
+            font-size: 13px; font-weight: 700; color: var(--accent1); text-transform: uppercase;
+            letter-spacing: 0.6px; margin: 30px 0 14px; display: flex; align-items: center; gap: 8px;
+        }
+        .section-title:first-of-type { margin-top: 0; }
+        .section-title .count-badge { background: rgba(34,211,238,0.12); color: var(--accent1); font-size: 11px; padding: 2px 9px; border-radius: 12px; font-weight: 700; }
+
+        .match-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+        .match-card {
+            background: var(--panel); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 16px; padding: 16px 18px;
+            transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+        }
+        .match-card:hover { transform: translateY(-2px); box-shadow: var(--glow); border-color: rgba(167,139,250,0.4); }
+        .match-card.is-live { border-color: rgba(244,114,182,0.5); background: linear-gradient(180deg, rgba(244,114,182,0.08) 0%, var(--panel) 45%); }
+        .match-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-faint); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.4px; }
+        .match-meta .live-tag { color: #f472b6; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+        .match-team-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+        .match-team-row .side { display: flex; align-items: center; gap: 10px; }
+        .match-team-row img { width: 26px; height: 26px; object-fit: contain; }
+        .match-team-row .tname { font-size: 14px; font-weight: 500; color: var(--text); }
+        .match-team-row .tname.winner { font-weight: 700; color: var(--accent1); }
+        .match-team-row .tscore { font-size: 16px; font-weight: 700; color: var(--text); min-width: 24px; text-align: right; }
+        .match-venue { font-size: 11px; color: var(--text-faint); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+
+        .sports-columns { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 40px; margin-top: 10px; }
+        .sports-section { margin-bottom: 30px; }
+        .sports-section h3 { font-size: 13px; font-weight: 700; color: var(--accent2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+        .game-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+        .game-row .game-date { color: var(--text-faint); width: 90px; flex-shrink: 0; font-size: 12px; }
+        .game-row .game-name { flex-grow: 1; color: var(--text); }
+        .game-row .game-score { font-weight: 700; color: var(--accent1); }
+        .tx-row { padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-dim); }
+        .tx-row .tx-date { color: var(--text-faint); font-size: 11px; display: block; margin-bottom: 2px; }
+        .news-row { padding: 11px 0; border-bottom: 1px solid var(--border); }
+        .news-row a { font-size: 14px; color: var(--accent1); text-decoration: none; font-weight: 600; }
+        .news-row a:hover { text-decoration: underline; }
+        .news-row p { font-size: 12px; color: var(--text-faint); margin-top: 3px; }
+
+        /* ---------- CESIUM 3D GLOBE PANEL ---------- */
+        .places-map-wrap { display: grid; grid-template-columns: 1.5fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: 18px; overflow: hidden; box-shadow: var(--glow); }
+        #places-globe, #explore-globe { height: 600px; width: 100%; }
+        /* Cesium's own widgets ship a dark UI already -- these tweaks just
+           round its corners and blend its default black backdrop with our
+           panel so it doesn't look like a bolted-on rectangle. */
+        .places-map-wrap .cesium-viewer, .places-map-wrap .cesium-widget, .places-map-wrap .cesium-widget canvas {
+            border-radius: 0;
+        }
+        .places-list { background: rgba(10,14,26,0.85); backdrop-filter: blur(16px); padding: 18px; max-height: 600px; overflow-y: auto; border-left: 1px solid var(--border); }
+        .places-list-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); font-family: 'Poppins', sans-serif; }
+        .place-row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .12s ease; border-radius: 8px; }
+        .place-row:hover { background: var(--panel-hover); }
+        .place-pin { width: 24px; height: 24px; border-radius: 50%; background: var(--aurora-gradient); color: #0a0e1a; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .place-name { font-size: 14px; font-weight: 600; color: var(--text); }
+        .place-address { font-size: 12px; color: var(--text-faint); margin-top: 2px; }
+        .place-distance { font-size: 12px; color: var(--accent1); font-weight: 600; margin-top: 4px; }
+        .globe-setup-note { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 26px; font-size: 14px; color: var(--text-dim); line-height: 1.65; max-width: 680px; }
+        .globe-setup-note .chat-setup-title { font-weight: 700; font-size: 16px; color: var(--text); margin-bottom: 10px; }
+        .globe-setup-note code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 5px; font-size: 13px; }
+        .globe-setup-note a { color: var(--accent1); text-decoration: none; }
+        .globe-setup-note a:hover { text-decoration: underline; }
+        .globe-setup-note ol { margin: 10px 0 10px 20px; }
+        .globe-setup-note li { margin-bottom: 4px; }
+
+        /* ---------- PREMIUM EDITORIAL OVERRIDES ---------- */
+        :root {
+            --bg: #101314;
+            --panel: rgba(236, 232, 220, 0.055);
+            --panel-hover: rgba(236, 232, 220, 0.095);
+            --border: rgba(236, 232, 220, 0.16);
+            --text: #f0ede5;
+            --text-dim: #b4b1a8;
+            --text-faint: #777a75;
+            --accent1: #d8a36a;
+            --accent2: #d8a36a;
+            --accent3: #e6c39a;
+            --aurora-gradient: none;
+            --glow: 0 12px 34px rgba(0, 0, 0, 0.22);
+        }
+        * { font-family: 'DM Sans', sans-serif; letter-spacing: 0; }
+        body {
+            background-color: var(--bg);
+            background-image: linear-gradient(rgba(236,232,220,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(236,232,220,0.035) 1px, transparent 1px);
+            background-size: 44px 44px;
+        }
+        body::before {
+            content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1;
+            background: radial-gradient(ellipse at 50% -20%, rgba(216,163,106,0.09), transparent 52%);
+        }
+        .aurora { opacity: 0.12; }
+        .aurora span { filter: blur(140px); opacity: 0.12; }
+        .aurora span:nth-child(1) { background: #c98a52; }
+        .aurora span:nth-child(2) { background: #82908a; }
+        .aurora span:nth-child(3) { display: none; }
+        .page { max-width: 1180px; padding: 0 38px 70px; }
+        .top-bar { gap: 38px; padding: 30px 0 26px; border-bottom: 1px solid var(--border); }
+        .page.is-homepage .top-bar { min-height: 58vh; gap: 26px; border-bottom: 0; }
+        .logo-mark, .page-title, .infobox-title, .sports-hero h1, .team-header h1, .compare-header div {
+            font-family: 'DM Serif Display', Georgia, serif;
+            font-weight: 400;
+            letter-spacing: 0;
+        }
+        .logo-mark { color: var(--text); background: none; animation: none; }
+        .top-bar .logo-mark { font-size: 29px; }
+        .page.is-homepage .logo-mark { font-size: 78px; color: var(--text); }
+        .search-form { max-width: 680px; }
+        .page.is-homepage .search-form { max-width: 650px; }
+        .search-form-row { gap: 12px; }
+        .search-box {
+            border-radius: 5px; padding: 0 17px; background: rgba(16,19,20,0.72);
+            backdrop-filter: blur(10px); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.015);
+        }
+        .search-box:focus-within { border-color: var(--accent1); box-shadow: 0 0 0 3px rgba(216,163,106,0.12); background: rgba(16,19,20,0.9); }
+        .search-box svg { color: var(--accent1); }
+        .clear-search { border: 0; background: transparent; color: var(--text-faint); padding: 4px; font-size: 18px; cursor: pointer; box-shadow: none; }
+        .clear-search:hover { color: var(--text); background: transparent; transform: none; box-shadow: none; }
+        input[type="text"] { font-size: 15px; }
+        button {
+            border-radius: 5px; padding: 13px 22px; color: #171310; background: var(--accent1);
+            box-shadow: none; transition: background .15s ease, transform .15s ease;
+        }
+        button:hover { background: #e5bb87; box-shadow: none; transform: translateY(-1px); }
+        .theme-toggle-btn, .account-avatar-btn { border-radius: 5px; }
+        .theme-toggle-btn { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+        .account-avatar-btn { background: var(--accent1); }
+        .sign-in-btn { border-radius: 5px; padding: 10px 17px; }
+        .tabs-bar { gap: 25px; margin: 22px 0 30px; border-bottom: 1px solid var(--border); }
+        .tab-link { padding-bottom: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+        .tab-link.active { color: var(--accent1); border-bottom-color: var(--accent1); }
+        .homepage-widgets { gap: 18px; margin-top: 6px; }
+        .weather-widget, .shortcut-chip, .recent-chip, .filter-chip, .otd-item {
+            border-radius: 4px; background: rgba(236,232,220,0.045);
+        }
+        .shortcut-chip { padding: 9px 15px; }
+        .shortcut-chip:hover, .recent-chip:hover { border-color: var(--accent1); }
+        .ai-overview-box {
+            border-radius: 5px; border: 1px solid var(--border); border-left: 3px solid var(--accent1);
+            background: rgba(236,232,220,0.055); box-shadow: var(--glow); padding: 24px 26px;
+        }
+        .ai-title { color: var(--accent1); background: none; -webkit-text-fill-color: initial; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+        .result-item { padding: 0 0 24px; margin-bottom: 24px; border-bottom: 1px solid rgba(236,232,220,0.10); }
+        .result-source { border-radius: 3px; background: rgba(216,163,106,0.13); color: var(--accent1); }
+        .result-title { font-size: 20px; font-weight: 600; }
+        .result-title:hover { color: var(--accent1); }
+        .result-url { color: #9ab09f; font-size: 12px; }
+        .result-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .result-favicon { width: 16px; height: 16px; border-radius: 3px; background: var(--panel); }
+        .result-domain { color: var(--text-faint); font-size: 11px; }
+        .result-snippet { max-width: 680px; }
+        .infobox-card, .movie-card, .video-card, .match-card, .chat-setup-note, .movie-setup-note, .globe-setup-note {
+            border-radius: 5px; background: rgba(236,232,220,0.055); box-shadow: var(--glow);
+        }
+        .infobox-card { border-top: 2px solid var(--accent1); }
+        .infobox-title { font-size: 28px; }
+        .related-chip, .chat-source-chip { border-radius: 4px; color: var(--accent1); }
+        .filter-chip.active, .movie-link-btn.primary { background: var(--accent1); color: #171310; }
+        .movie-card:hover, .video-card:hover, .match-card:hover { transform: translateY(-2px); border-color: var(--accent1); box-shadow: var(--glow); }
+        .movie-link-btn { border-radius: 4px; }
+        .page-loading-overlay { background: var(--bg); }
+        @media (max-width: 760px) {
+            .page { padding: 0 18px 45px; }
+            .top-bar, .page.is-homepage .top-bar { align-items: stretch; gap: 18px; padding-top: 20px; }
+            .page.is-homepage .top-bar { min-height: 52vh; }
+            .page.is-homepage .logo-mark { font-size: 54px; text-align: center; }
+            .top-bar .logo-mark { align-self: center; }
+            .search-form, .page.is-homepage .search-form { max-width: none; }
+            .search-form-row { display: grid; grid-template-columns: 1fr auto; }
+            .search-box-wrap { grid-column: 1 / -1; }
+            .theme-picker { position: absolute; top: 18px; right: 18px; }
+            .account-widget { position: absolute; top: 18px; left: 18px; }
+            .tabs-bar { gap: 18px; overflow-x: auto; padding-bottom: 1px; }
+            .tab-link { white-space: nowrap; }
+            .results-layout { grid-template-columns: 1fr; gap: 18px; }
+            .infobox-card { position: static; }
+            .sports-columns { grid-template-columns: 1fr; gap: 0; }
+        }
+    </style>
+</head>
+<body>
+<div class="page-loading-overlay" id="pageLoadingOverlay"><div class="mini-spinner spinning"></div></div>
+<div class="aurora"><span></span><span></span><span></span></div>
+{% set is_homepage = (mode == 'all' and not query) %}
+<div class="page {% if is_homepage %}is-homepage{% endif %}">
+    <div class="top-bar">
+        <a class="logo-mark" href="/">ÆtherScan</a>
+        <form method="GET" action="/" class="search-form" id="searchForm">
+            <div class="search-form-row">
+                <input type="hidden" name="mode" value="{{ mode }}">
+                {% if site_filter %}<input type="hidden" name="site" value="{{ site_filter }}">{% endif %}
+                {% if sort and sort != 'relevance' %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+                {% if mode == 'sports' %}
+                    <select class="league-select" name="league" onchange="this.form.submit()">
+                        {% for key, info in leagues.items() %}
+                            <option value="{{ key }}" {% if key == league %}selected{% endif %}>{{ info[2] }}</option>
+                        {% endfor %}
+                    </select>
+                {% endif %}
+                <div class="search-box-wrap">
+                    <div class="search-box">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" name="q" id="searchInput" autocomplete="off"
+                               placeholder="{% if mode == 'sports' %}Optional: search one team, e.g. Arsenal{% elif mode == 'maps' %}Search a place, e.g. Eiffel Tower or coffee shops in Auckland{% elif mode == 'movies' %}Search for a movie, e.g. Dune Part Two{% else %}Search Wikipedia + images...{% endif %}"
+                               value="{{ query }}" {% if mode != 'sports' %}required{% endif %}>
+                           {% if query %}<button type="button" class="clear-search" id="clearSearch" title="Clear search" aria-label="Clear search">&times;</button>{% endif %}
+                    </div>
+                    <div class="autocomplete-list" id="autocompleteList"></div>
+                </div>
+                <button type="submit">{% if mode == 'sports' %}Find Team{% elif mode == 'maps' %}Search Map{% else %}Search{% endif %}</button>
+                <div class="theme-picker">
+                    <button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Background theme" aria-label="Background theme">🎨</button>
+                    <div class="theme-popover" id="themePopover">
+                        <div class="theme-popover-label">Background</div>
+                        <div class="swatch-row">
+                            <div class="swatch" data-theme="default" title="Aurora (default)"></div>
+                            <div class="swatch" data-theme="ocean" title="Ocean"></div>
+                            <div class="swatch" data-theme="sunset" title="Sunset"></div>
+                            <div class="swatch" data-theme="forest" title="Forest"></div>
+                            <div class="swatch" data-theme="mono" title="Mono"></div>
+                            <div class="swatch" data-theme="light" title="Light"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+        <div class="account-widget">
+            {% if username %}
+                <button type="button" class="account-avatar-btn" id="accountAvatarBtn" title="{{ username }}" aria-label="Account menu">{{ username[0]|upper }}</button>
+                <div class="account-popover" id="accountPopover">
+                    <div class="account-popover-name">Signed in as<br><strong>{{ username }}</strong></div>
+                    <a href="/settings" class="account-settings-btn">⚙️ Settings</a>
+                    <form method="POST" action="/logout"><button type="submit" class="account-signout-btn">Sign out</button></form>
+                </div>
+            {% else %}
+                <a class="sign-in-btn" href="/login">Sign in</a>
+            {% endif %}
+        </div>
+    </div>
+    {% if not is_homepage %}
+        <div class="tabs-bar">
+            <a class="tab-link {% if mode == 'all' %}active{% endif %}" href="/?q={{ query|urlencode }}&mode=all">All Results</a>
+            <a class="tab-link {% if mode == 'images' %}active{% endif %}" href="/?q={{ query|urlencode }}&mode=images">Images</a>
+            <a class="tab-link {% if mode == 'videos' %}active{% endif %}" href="/?q={{ query|urlencode }}&mode=videos">Videos</a>
+            <a class="tab-link {% if mode == 'news' %}active{% endif %}" href="/?q={{ query|urlencode }}&mode=news">News</a>
+            <a class="tab-link {% if mode == 'chat' %}active{% endif %}" href="/?mode=chat">AI Chat</a>
+            <a class="tab-link {% if mode == 'movies' %}active{% endif %}" href="/?q={{ query|urlencode }}&mode=movies">Movies</a>
+            <a class="tab-link {% if mode == 'sports' %}active{% endif %}" href="/?mode=sports&league={{ league }}">Sports</a>
+            <a class="tab-link {% if mode == 'maps' %}active{% endif %}" href="/?q={{ query|urlencode }}&mode=maps">Maps</a>
+        </div>
+        {% if errors %}
+            <div style="background:#fce8e6;border:1px solid #f5c2c0;border-radius:8px;padding:14px 18px;margin-bottom:20px;color:#a50e0e;font-size:13px;">
+                {% for err in errors %}<div>⚠️ {{ err }}</div>{% endfor %}
+            </div>
+        {% endif %}
+    {% endif %}
+
+    {% if is_homepage %}
+        <div class="homepage-widgets">
+            <div id="weatherWidget" class="weather-widget" style="display:none;">
+                <span class="weather-temp" id="weatherTemp"></span>
+                <span class="weather-cond" id="weatherCond"></span>
+            </div>
+            <div class="shortcuts-row">
+                <a class="shortcut-chip" href="/?q=gmail&mode=all">Gmail</a>
+                <a class="shortcut-chip" href="/?q=youtube&mode=all">YouTube</a>
+                <a class="shortcut-chip" href="/?mode=news">News</a>
+                <a class="shortcut-chip" href="/?q=github&mode=all">GitHub</a>
+                <a class="shortcut-chip" href="/?q=reddit&mode=all">Reddit</a>
+                <a class="shortcut-chip" href="/?q=netflix&mode=all">Netflix</a>
+            </div>
+            {% if recent_searches %}
+                <div class="recent-searches-row">
+                    <span class="recent-label">Recent:</span>
+                    {% for r in recent_searches[:6] %}
+                        <a class="recent-chip" href="/?q={{ r.query|urlencode }}&mode={{ r.mode }}">{{ r.query }}</a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        {% if on_this_day %}
+            <div class="on-this-day">
+                <div class="on-this-day-label">On this day</div>
+                {% for event in on_this_day %}
+                    <a class="otd-item" href="{{ event.url }}" target="_blank" rel="noopener">
+                        <span class="otd-year">{{ event.year }}</span>
+                        <span class="otd-text">{{ event.text }}</span>
+                    </a>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endif %}
+
+    {% if mode == 'sports' %}
+            {% if team_report %}
+                <div class="team-header">
+                    {% if team_report.logo %}<img class="team-logo-lg" src="{{ team_report.logo }}">{% endif %}
+                    <div>
+                        <h1>{{ team_report.team_name }}</h1>
+                        <div class="league-tag">{{ team_report.league_name }}</div>
+                    </div>
+                </div>
+                <div class="sports-columns">
+                    <div>
+                        <div class="sports-section">
+                            <h3>Previous Games</h3>
+                            {% if team_report.previous %}
+                                {% for g in team_report.previous %}
+                                    <div class="game-row">
+                                        <span class="game-date">{{ g.date }}</span>
+                                        <span class="game-name">{{ g.name }}</span>
+                                        <span class="game-score">{{ g.score or g.status }}</span>
+                                    </div>
+                                {% endfor %}
+                            {% else %}<p class="empty-note">No recent games found.</p>{% endif %}
+                        </div>
+                        <div class="sports-section">
+                            <h3>Upcoming Games</h3>
+                            {% if team_report.upcoming %}
+                                {% for g in team_report.upcoming %}
+                                    <div class="game-row">
+                                        <span class="game-date">{{ g.date }}</span>
+                                        <span class="game-name">{{ g.name }}</span>
+                                        <span class="game-score">{{ g.status }}</span>
+                                    </div>
+                                {% endfor %}
+                            {% else %}<p class="empty-note">No upcoming games found.</p>{% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="sports-section">
+                            <h3>Transactions / Transfers</h3>
+                            {% if team_report.transactions %}
+                                {% for t in team_report.transactions %}
+                                    <div class="tx-row"><span class="tx-date">{{ t.date }}</span>{{ t.text }}</div>
+                                {% endfor %}
+                            {% else %}<p class="empty-note">No transaction data available for this league.</p>{% endif %}
+                        </div>
+                        <div class="sports-section">
+                            <h3>Latest News</h3>
+                            {% if team_report.news %}
+                                {% for n in team_report.news %}
+                                    <div class="news-row">
+                                        <a href="{{ n.url }}" target="_blank" rel="noopener">{{ n.headline }}</a>
+                                        <p>{{ n.description }}</p>
+                                    </div>
+                                {% endfor %}
+                            {% else %}<p class="empty-note">No recent news found.</p>{% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% elif scoreboard %}
+                <div class="sports-hero">
+                    <div>
+                        <h1>{{ scoreboard.league_name }}</h1>
+                        <div class="sub">All games, roughly two weeks back to ten days ahead</div>
+                    </div>
+                    {% if scoreboard.live %}
+                        <div class="live-pill"><span class="pulse-dot"></span>{{ scoreboard.live|length }} LIVE NOW</div>
+                    {% endif %}
+                </div>
+
+                {% if scoreboard.live %}
+                    <div class="section-title">Live <span class="count-badge">{{ scoreboard.live|length }}</span></div>
+                    <div class="match-grid">
+                        {% for g in scoreboard.live %}
+                            <div class="match-card is-live">
+                                <div class="match-meta"><span class="live-tag"><span class="pulse-dot"></span>{{ g.detail }}</span><span>{{ g.date }}</span></div>
+                                <div class="match-team-row">
+                                    <div class="side">{% if g.home.logo %}<img src="{{ g.home.logo }}">{% endif %}<span class="tname {% if g.home.winner %}winner{% endif %}">{{ g.home.name }}</span></div>
+                                    <span class="tscore">{{ g.home.score if g.home.score is not none else '-' }}</span>
+                                </div>
+                                <div class="match-team-row">
+                                    <div class="side">{% if g.away.logo %}<img src="{{ g.away.logo }}">{% endif %}<span class="tname {% if g.away.winner %}winner{% endif %}">{{ g.away.name }}</span></div>
+                                    <span class="tscore">{{ g.away.score if g.away.score is not none else '-' }}</span>
+                                </div>
+                                {% if g.venue %}<div class="match-venue">📍 {{ g.venue }}</div>{% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="section-title">Recent Results <span class="count-badge">{{ scoreboard.recent|length }}</span></div>
+                {% if scoreboard.recent %}
+                    <div class="match-grid">
+                        {% for g in scoreboard.recent %}
+                            <div class="match-card">
+                                <div class="match-meta"><span>{{ g.detail }}</span><span>{{ g.date }}</span></div>
+                                <div class="match-team-row">
+                                    <div class="side">{% if g.home.logo %}<img src="{{ g.home.logo }}">{% endif %}<span class="tname {% if g.home.winner %}winner{% endif %}">{{ g.home.name }}</span></div>
+                                    <span class="tscore">{{ g.home.score if g.home.score is not none else '-' }}</span>
+                                </div>
+                                <div class="match-team-row">
+                                    <div class="side">{% if g.away.logo %}<img src="{{ g.away.logo }}">{% endif %}<span class="tname {% if g.away.winner %}winner{% endif %}">{{ g.away.name }}</span></div>
+                                    <span class="tscore">{{ g.away.score if g.away.score is not none else '-' }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}<p class="empty-note">No recent results in this window.</p>{% endif %}
+
+                <div class="section-title">Upcoming Fixtures <span class="count-badge">{{ scoreboard.upcoming|length }}</span></div>
+                {% if scoreboard.upcoming %}
+                    <div class="match-grid">
+                        {% for g in scoreboard.upcoming %}
+                            <div class="match-card">
+                                <div class="match-meta"><span>{{ g.detail }}</span><span>{{ g.date }}</span></div>
+                                <div class="match-team-row">
+                                    <div class="side">{% if g.home.logo %}<img src="{{ g.home.logo }}">{% endif %}<span class="tname">{{ g.home.name }}</span></div>
+                                </div>
+                                <div class="match-team-row">
+                                    <div class="side">{% if g.away.logo %}<img src="{{ g.away.logo }}">{% endif %}<span class="tname">{{ g.away.name }}</span></div>
+                                </div>
+                                {% if g.venue %}<div class="match-venue">📍 {{ g.venue }}</div>{% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}<p class="empty-note">No upcoming fixtures in this window.</p>{% endif %}
+            {% endif %}
+        {% elif mode == 'maps' and map_places is not none %}
+            {% if not cesium_configured %}
+                <div class="globe-setup-note">
+                    <div class="chat-setup-title">Maps needs a free Cesium ion token</div>
+                    <p>The 3D globe (satellite imagery + terrain) runs on Cesium ion. Sign up free (no card) and set one env var:</p>
+                    <ol>
+                        <li>Create an account at <a href="https://cesium.com/ion/signup" target="_blank" rel="noopener">cesium.com/ion/signup</a></li>
+                        <li>Copy your default token from <a href="https://cesium.com/ion/tokens" target="_blank" rel="noopener">cesium.com/ion/tokens</a></li>
+                        <li>Set it as the <code>CESIUM_ION_TOKEN</code> environment variable and restart the app</li>
+                    </ol>
+                </div>
+            {% else %}
+                <div class="places-map-wrap">
+                    <div id="explore-globe"></div>
+                    <div class="places-list">
+                        <div class="places-list-title">Results for "{{ query }}"</div>
+                        {% if map_places %}
+                            {% for p in map_places %}
+                                <div class="place-row" onclick="window.__flyToPlace && window.__flyToPlace({{ loop.index0 }})">
+                                    <div class="place-pin">{{ loop.index }}</div>
+                                    <div class="place-info">
+                                        <div class="place-name">{{ p.name }}</div>
+                                        <div class="place-address">{{ p.address }}</div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="empty-note">No matching places found.</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <script src="https://cesium.com/downloads/cesiumjs/releases/1.128/Build/Cesium/Cesium.js"></script>
+                <link href="https://cesium.com/downloads/cesiumjs/releases/1.128/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+                <script>
+                    (function () {
+                        var places = {{ map_places|tojson }};
+                        Cesium.Ion.defaultAccessToken = {{ cesium_token|tojson }};
+
+                        var viewer = new Cesium.Viewer('explore-globe', {
+                            timeline: false,
+                            animation: false,
+                            geocoder: false,
+                            homeButton: true,
+                            sceneModePicker: true,
+                            navigationHelpButton: false,
+                            baseLayerPicker: true,
+                            infoBox: true,
+                            selectionIndicator: true,
+                        });
+
+                        var entities = places.map(function (p, i) {
+                            return viewer.entities.add({
+                                name: p.name,
+                                description: p.address,
+                                position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat),
+                                point: { pixelSize: 14, color: Cesium.Color.fromCssColorString('#f472b6'), outlineColor: Cesium.Color.WHITE, outlineWidth: 2 },
+                                label: {
+                                    text: String(i + 1),
+                                    font: 'bold 13px sans-serif',
+                                    fillColor: Cesium.Color.BLACK,
+                                    verticalOrigin: Cesium.VerticalOrigin.CENTER,
+                                    pixelOffset: new Cesium.Cartesian2(0, 1),
+                                },
+                            });
+                        });
+
+                        if (entities.length) {
+                            viewer.flyTo(entities, { duration: 1.5 });
+                        }
+
+                        window.__flyToPlace = function (i) {
+                            var entity = entities[i];
+                            if (entity) {
+                                viewer.selectedEntity = entity;
+                                viewer.flyTo(entity, { duration: 1.2 });
+                            }
+                        };
+                    })();
+                </script>
+            {% endif %}
+        {% elif nearby_places is not none %}
+            {% if not cesium_configured %}
+                <div class="globe-setup-note">
+                    <div class="chat-setup-title">Maps needs a free Cesium ion token</div>
+                    <p>The 3D globe (satellite imagery + terrain) runs on Cesium ion. Sign up free (no card) and set one env var:</p>
+                    <ol>
+                        <li>Create an account at <a href="https://cesium.com/ion/signup" target="_blank" rel="noopener">cesium.com/ion/signup</a></li>
+                        <li>Copy your default token from <a href="https://cesium.com/ion/tokens" target="_blank" rel="noopener">cesium.com/ion/tokens</a></li>
+                        <li>Set it as the <code>CESIUM_ION_TOKEN</code> environment variable and restart the app</li>
+                    </ol>
+                </div>
+            {% else %}
+                <div class="places-map-wrap">
+                    <div id="places-globe"></div>
+                    <div class="places-list">
+                        <div class="places-list-title">Closest {{ nearby_query|title }}</div>
+                        {% if nearby_places %}
+                            {% for p in nearby_places %}
+                                <div class="place-row" onclick="window.__flyToPlace && window.__flyToPlace({{ loop.index0 }})">
+                                    <div class="place-pin">{{ loop.index }}</div>
+                                    <div class="place-info">
+                                        <div class="place-name">{{ p.name }}</div>
+                                        <div class="place-address">{{ p.address }}</div>
+                                        <div class="place-distance">{{ p.distance_km }} km away</div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="empty-note">No results found nearby.</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <script src="https://cesium.com/downloads/cesiumjs/releases/1.128/Build/Cesium/Cesium.js"></script>
+                <link href="https://cesium.com/downloads/cesiumjs/releases/1.128/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+                <script>
+                    (function () {
+                        var userLat = {{ lat }}, userLon = {{ lon }};
+                        var places = {{ nearby_places|tojson }};
+                        Cesium.Ion.defaultAccessToken = {{ cesium_token|tojson }};
+
+                        var viewer = new Cesium.Viewer('places-globe', {
+                            timeline: false,
+                            animation: false,
+                            geocoder: false,
+                            homeButton: true,
+                            sceneModePicker: true,
+                            navigationHelpButton: false,
+                            baseLayerPicker: true,
+                            infoBox: true,
+                            selectionIndicator: true,
+                        });
+
+                        var youEntity = viewer.entities.add({
+                            name: 'You are here',
+                            position: Cesium.Cartesian3.fromDegrees(userLon, userLat),
+                            point: { pixelSize: 16, color: Cesium.Color.fromCssColorString('#a78bfa'), outlineColor: Cesium.Color.WHITE, outlineWidth: 3 },
+                        });
+
+                        var entities = [youEntity].concat(places.map(function (p, i) {
+                            return viewer.entities.add({
+                                name: p.name,
+                                description: p.address + '<br>' + p.distance_km + ' km away',
+                                position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat),
+                                point: { pixelSize: 14, color: Cesium.Color.fromCssColorString('#f472b6'), outlineColor: Cesium.Color.WHITE, outlineWidth: 2 },
+                                label: {
+                                    text: String(i + 1),
+                                    font: 'bold 13px sans-serif',
+                                    fillColor: Cesium.Color.BLACK,
+                                    verticalOrigin: Cesium.VerticalOrigin.CENTER,
+                                    pixelOffset: new Cesium.Cartesian2(0, 1),
+                                },
+                            });
+                        }));
+
+                        viewer.flyTo(entities, { duration: 1.5 });
+
+                        window.__flyToPlace = function (i) {
+                            var entity = entities[i + 1]; // offset by the "you are here" entity at index 0
+                            if (entity) {
+                                viewer.selectedEntity = entity;
+                                viewer.flyTo(entity, { duration: 1.2 });
+                            }
+                        };
+                    })();
+                </script>
+            {% endif %}
+        {% elif mode == 'news' %}
+            {% if news_articles %}
+                <div class="news-list">
+                    {% for a in news_articles %}
+                        <a class="news-item" href="{{ a.url }}" target="_blank" rel="noopener">
+                            <div class="news-item-title">{{ a.title }}</div>
+                            <div class="news-item-meta">{{ a.source }}{% if a.published %} • {{ a.published }}{% endif %}</div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-note">No news articles found.</p>
+            {% endif %}
+        {% elif mode == 'chat' %}
+            <div class="chat-panel">
+                {% if not ai_chat_provider %}
+                    <div class="chat-setup-note">
+                        <div class="chat-setup-title">AI Chat needs a free API key</div>
+                        <p>Get one at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> (genuinely free, no card required) and set it as the <code>GROQ_API_KEY</code> environment variable, then restart the app.</p>
+                        <p>Prefer Gemini or Claude instead? Set <code>GEMINI_API_KEY</code> or <code>ANTHROPIC_API_KEY</code> instead (Gemini is also free; Claude is pay-as-you-go, get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>).</p>
+                        {% if username %}<p>Or add your own key on your <a href="/settings">Settings</a> page.</p>{% endif %}
+                    </div>
+                {% else %}
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="chat-msg chat-msg-assistant">
+                            <div class="chat-bubble">Hi! Ask me anything — I can pull in live search results to ground my answers when it helps.</div>
+                        </div>
+                    </div>
+                    <form class="chat-input-row" id="chatForm">
+                        <input type="text" id="chatInput" placeholder="Ask a question..." autocomplete="off" required>
+                        <button type="submit">Send</button>
+                    </form>
+                {% endif %}
+            </div>
+        {% elif mode == 'movies' %}
+            {% if not tmdb_configured %}
+                <div class="movie-setup-note">
+                    <div class="chat-setup-title">Movies needs a free TMDb API key</div>
+                    <p>Sign up at <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener">themoviedb.org/signup</a>, then under Settings → API request a free "Developer" key, set it as the <code>TMDB_API_KEY</code> environment variable, and restart the app.</p>
+                    {% if username %}<p>Or add your own key on your <a href="/settings">Settings</a> page.</p>{% endif %}
+                </div>
+            {% elif not query %}
+                <p class="empty-note">Search for a movie above to see posters, ratings, and where to watch it.</p>
+            {% elif movie_results %}
+                <div class="movie-grid">
+                    {% for m in movie_results %}
+                        <div class="movie-card">
+                            <div class="movie-poster-wrap">
+                                {% if m.poster %}<img src="{{ m.poster }}" loading="lazy" onerror="this.style.display='none'">{% else %}<span class="movie-poster-placeholder">🎬</span>{% endif %}
+                            </div>
+                            <div class="movie-info">
+                                <div class="movie-title">{{ m.title }}{% if m.year %} <span style="color:var(--text-faint); font-weight:400;">({{ m.year }})</span>{% endif %}</div>
+                                <div class="movie-meta">
+                                    {% if m.rating %}<span class="movie-rating">★ {{ m.rating }}</span>{% endif %}
+                                </div>
+                                {% if m.overview %}<div class="movie-overview">{{ m.overview }}</div>{% endif %}
+                                {% if m.watch_providers %}
+                                    <div class="movie-providers">
+                                        {% for p in m.watch_providers %}<span class="movie-provider-chip">{{ p }}</span>{% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="movie-links">
+                                    <a class="movie-link-btn" href="{{ m.tmdb_url }}" target="_blank" rel="noopener">Details</a>
+                                    <a class="movie-link-btn primary" href="{{ m.watch_url }}" target="_blank" rel="noopener">Watch</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-note">No movies found for this search.</p>
+            {% endif %}
+        {% elif query %}
+            {% if mode == 'images' %}
+                {% if images %}
+                    <div class="image-grid" id="imageGrid" data-query="{{ query|e }}" data-next-page="2">
+                        {% for img in images %}
+                            <img class="image-box" src="{{ img }}" loading="lazy" onerror="this.style.display='none'">
+                        {% endfor %}
+                    </div>
+                    <div class="scroll-sentinel" id="imageScrollSentinel"><div class="mini-spinner" id="imageSpinner"></div></div>
+                {% else %}
+                    <p class="empty-note">No images found for this search.</p>
+                {% endif %}
+            {% elif mode == 'videos' %}
+                <div class="video-grid">
+                    {% for vid in videos %}
+                        <a class="video-card" href="{{ vid.url }}" target="_blank" rel="noopener">
+                            <div class="video-thumb-wrap">📺</div>
+                            <div class="video-meta-box">
+                                <div class="video-card-title">{{ vid.title }}</div>
+                                <div class="video-card-source">Platform: {{ vid.source }}</div>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                {% if compare %}
+                    <div class="compare-box">
+                        <div class="compare-header">
+                            <div>{{ compare.item_a }}</div>
+                            <div>{{ compare.item_b }}</div>
+                        </div>
+                        {% for cat in compare.categories %}
+                            <div class="compare-row">
+                                <div class="compare-cell"><span class="compare-label">{{ cat.label }}</span>{{ cat.a }}</div>
+                                <div class="compare-cell"><span class="compare-label">{{ cat.label }}</span>{{ cat.b }}</div>
+                            </div>
+                        {% endfor %}
+                        {% if compare.verdict %}
+                            <div class="compare-verdict"><strong>Verdict:</strong> {{ compare.verdict }}</div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                {% if spelling_suggestion %}
+                    <p class="spell-suggestion">Did you mean:
+                        <a href="/?q={{ spelling_suggestion|urlencode }}&mode=all{% if site_filter %}&site={{ site_filter|urlencode }}{% endif %}{% if sort and sort != 'relevance' %}&sort={{ sort }}{% endif %}">{{ spelling_suggestion }}</a>?
+                    </p>
+                {% endif %}
+
+                <div class="ai-overview-box">
+                    <div class="ai-title">✨ AI Overview</div>
+                    <div>{{ ai_overview }}</div>
+                    {% if related_searches %}
+                        <div class="related-row">
+                            {% for r in related_searches %}
+                                <a class="related-chip" href="{{ r.url }}" target="_blank" rel="noopener">{{ r.title }}</a>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="filter-row">
+                    <span class="filter-label">Source</span>
+                    {% for s in source_filters %}
+                        {% set s_val = '' if s == 'All' else s %}
+                        <a class="filter-chip {% if site_filter == s_val %}active{% endif %}"
+                           href="/?q={{ query|urlencode }}&mode=all{% if s_val %}&site={{ s_val|urlencode }}{% endif %}{% if sort and sort != 'relevance' %}&sort={{ sort }}{% endif %}">{{ s }}</a>
+                    {% endfor %}
+                    <span class="filter-label" style="margin-left: 14px;">Sort</span>
+                    <a class="filter-chip {% if sort != 'newest' %}active{% endif %}" href="/?q={{ query|urlencode }}&mode=all{% if site_filter %}&site={{ site_filter|urlencode }}{% endif %}&sort=relevance">Relevance</a>
+                    <a class="filter-chip {% if sort == 'newest' %}active{% endif %}" href="/?q={{ query|urlencode }}&mode=all{% if site_filter %}&site={{ site_filter|urlencode }}{% endif %}&sort=newest">Newest</a>
+                </div>
+
+                <div class="results-layout">
+                    <div>
+                        <p style="color: var(--text-faint); font-size: 14px; margin-bottom: 22px;">Results found: {{ web_results|length }}</p>
+                        {% if not web_results %}
+                            <p class="empty-note">No results found{% if site_filter %} for source "{{ site_filter }}"{% endif %}. Try a different source filter or search term.</p>
+                        {% endif %}
+                        {% for item in web_results %}
+                            <div class="result-item">
+                                <div class="result-heading">
+                                    {% if item.favicon %}<img class="result-favicon" src="{{ item.favicon }}" alt="" loading="lazy">{% endif %}
+                                    {% if item.domain %}<span class="result-domain">{{ item.domain }}</span>{% endif %}
+                                    {% if item.source %}<span class="result-source">{{ item.source }}</span>{% endif %}
+                                </div>
+                                <a class="result-title" href="{{ item.url }}" target="_blank" rel="noopener">{{ item.title }}</a>
+                                <a class="result-url" href="{{ item.url }}" target="_blank" rel="noopener">{{ item.url }}</a>
+                                <div class="result-snippet">{{ item.snippet }}</div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div>
+                        {% if infobox %}
+                            <div class="infobox-card">
+                                {% if infobox.image %}<img class="infobox-image" src="{{ infobox.image }}" alt="{{ infobox.title }}">{% endif %}
+                                <h2 class="infobox-title">{{ infobox.title }}</h2>
+                                <div class="infobox-sub">{{ infobox.subtitle }}</div>
+                                <p class="infobox-desc">{{ infobox.desc }}</p>
+                                {% if infobox.link %}
+                                    <a class="movie-link-btn primary" href="{{ infobox.link }}" target="_blank" rel="noopener">{{ infobox.link_label or 'Open website' }} &rarr;</a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        {% endif %}
+</div>
+<script>
+    // For "closest X" searches: grab the browser's location once and
+    // resubmit the same search with lat/lon attached, so the map can render.
+    (function () {
+        var params = new URLSearchParams(window.location.search);
+        var q = (params.get('q') || '').trim();
+        var mode = params.get('mode') || 'all';
+        var hasLoc = params.has('lat') && params.has('lon');
+        if (mode === 'all' && /^\s*closest\s+/i.test(q) && !hasLoc && navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function (pos) {
+                params.set('lat', pos.coords.latitude);
+                params.set('lon', pos.coords.longitude);
+                window.location.search = params.toString();
+            }, function () {
+                // permission denied or unavailable -- just leave the normal search results showing
+            });
+        }
+    })();
+</script>
+
+<script>
+    // Homepage weather widget: separate, one-off geolocation request (does
+    // NOT resubmit/reload the page like the "closest X" one above -- just
+    // quietly fills in the widget if the element is present and permission
+    // is granted).
+    (function () {
+        var widget = document.getElementById('weatherWidget');
+        if (!widget || !navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(function (pos) {
+            var url = '/api/weather?lat=' + pos.coords.latitude + '&lon=' + pos.coords.longitude;
+            fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+                if (!data || data.temp_c === null || data.temp_c === undefined) return;
+                document.getElementById('weatherTemp').textContent = Math.round(data.temp_c) + '°C';
+                document.getElementById('weatherCond').textContent = data.condition;
+                widget.style.display = 'flex';
+            }).catch(function () {});
+        }, function () { /* permission denied -- just leave the widget hidden */ });
+    })();
+</script>
+
+<script>
+    // ---------- THEME PICKER ----------
+    (function () {
+        var STORAGE_KEY = 'aetherscan-theme';
+        var body = document.body;
+        var toggleBtn = document.getElementById('themeToggleBtn');
+        var popover = document.getElementById('themePopover');
+        var swatches = document.querySelectorAll('.swatch');
+
+        function applyTheme(theme) {
+            if (theme && theme !== 'default') {
+                body.setAttribute('data-theme', theme);
+            } else {
+                body.removeAttribute('data-theme');
+                theme = 'default';
+            }
+            swatches.forEach(function (sw) {
+                sw.classList.toggle('active', sw.getAttribute('data-theme') === theme);
+            });
+        }
+
+        var saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) applyTheme(saved);
+        else applyTheme('default');
+
+        if (toggleBtn && popover) {
+            toggleBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                popover.classList.toggle('open');
+            });
+            document.addEventListener('click', function (e) {
+                if (!popover.contains(e.target) && e.target !== toggleBtn) {
+                    popover.classList.remove('open');
+                }
+            });
+        }
+
+        swatches.forEach(function (sw) {
+            sw.addEventListener('click', function () {
+                var theme = sw.getAttribute('data-theme');
+                localStorage.setItem(STORAGE_KEY, theme);
+                applyTheme(theme);
+            });
+        });
+    })();
+
+    // ---------- AUTOCOMPLETE ----------
+    (function () {
+        var clear = document.getElementById('clearSearch');
+        var input = document.getElementById('searchInput');
+        if (clear && input) clear.addEventListener('click', function () {
+            input.value = '';
+            input.focus();
+        });
+        document.addEventListener('keydown', function (event) {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+                event.preventDefault();
+                if (input) input.focus();
+            }
+            if (event.key === 'Escape' && input && document.activeElement === input) {
+                input.value = '';
+            }
+        });
+    })();
+
+    // ---------- AUTOCOMPLETE ----------
+    (function () {
+        var input = document.getElementById('searchInput');
+        var list = document.getElementById('autocompleteList');
+        if (!input || !list) return;
+
+        var debounceTimer = null;
+        var currentSuggestions = [];
+        var highlightedIndex = -1;
+
+        function renderSuggestions(items) {
+            currentSuggestions = items;
+            highlightedIndex = -1;
+            if (!items.length) {
+                list.classList.remove('open');
+                list.innerHTML = '';
+                return;
+            }
+            list.innerHTML = items.map(function (text, i) {
+                return '<div class="autocomplete-item" data-index="' + i + '">' + text.replace(/</g, '&lt;') + '</div>';
+            }).join('');
+            list.classList.add('open');
+            Array.prototype.forEach.call(list.querySelectorAll('.autocomplete-item'), function (el) {
+                el.addEventListener('mousedown', function (e) {
+                    e.preventDefault();
+                    input.value = el.textContent;
+                    list.classList.remove('open');
+                    input.form.submit();
+                });
+            });
+        }
+
+        input.addEventListener('input', function () {
+            var q = input.value.trim();
+            clearTimeout(debounceTimer);
+            if (!q) { renderSuggestions([]); return; }
+            debounceTimer = setTimeout(function () {
+                fetch('/api/suggest?q=' + encodeURIComponent(q))
+                    .then(function (r) { return r.json(); })
+                    .then(renderSuggestions)
+                    .catch(function () { renderSuggestions([]); });
+            }, 180);
+        });
+
+        input.addEventListener('keydown', function (e) {
+            var items = list.querySelectorAll('.autocomplete-item');
+            if (!items.length || !list.classList.contains('open')) return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                highlightedIndex = Math.min(highlightedIndex + 1, items.length - 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                highlightedIndex = Math.max(highlightedIndex - 1, 0);
+            } else if (e.key === 'Escape') {
+                list.classList.remove('open');
+                return;
+            } else {
+                return;
+            }
+            items.forEach(function (el, i) { el.classList.toggle('highlighted', i === highlightedIndex); });
+            if (highlightedIndex >= 0) input.value = currentSuggestions[highlightedIndex];
+        });
+
+        document.addEventListener('click', function (e) {
+            if (e.target !== input) list.classList.remove('open');
+        });
+    })();
+
+    // ---------- INFINITE SCROLL (Images tab) ----------
+    (function () {
+        var grid = document.getElementById('imageGrid');
+        var sentinel = document.getElementById('imageScrollSentinel');
+        var spinner = document.getElementById('imageSpinner');
+        if (!grid || !sentinel) return;
+
+        var loading = false;
+        var exhausted = false;
+
+        function loadMore() {
+            if (loading || exhausted) return;
+            loading = true;
+            spinner.classList.add('spinning');
+            var query = grid.getAttribute('data-query');
+            var page = parseInt(grid.getAttribute('data-next-page'), 10);
+            fetch('/api/more_images?q=' + encodeURIComponent(query) + '&page=' + page)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var images = data.images || [];
+                    if (!images.length) { exhausted = true; }
+                    images.forEach(function (src) {
+                        var img = document.createElement('img');
+                        img.className = 'image-box';
+                        img.src = src;
+                        img.loading = 'lazy';
+                        img.onerror = function () { img.style.display = 'none'; };
+                        grid.appendChild(img);
+                    });
+                    grid.setAttribute('data-next-page', page + 1);
+                })
+                .catch(function () { exhausted = true; })
+                .finally(function () {
+                    loading = false;
+                    spinner.classList.remove('spinning');
+                });
+        }
+
+        if ('IntersectionObserver' in window) {
+            var observer = new IntersectionObserver(function (entries) {
+                if (entries[0].isIntersecting) loadMore();
+            }, { rootMargin: '400px' });
+            observer.observe(sentinel);
+        }
+    })();
+
+    // ---------- AI CHAT ----------
+    // The backend route (/api/chat) always existed -- this is the missing
+    // frontend half: without this, the plain <form> submit had no action
+    // or method, and its input had no name= attribute, so submitting it
+    // did a bare browser GET that stripped the URL down to just "/",
+    // landing on the blank homepage instead of actually asking anything.
+    (function () {
+        var form = document.getElementById('chatForm');
+        var input = document.getElementById('chatInput');
+        var messagesEl = document.getElementById('chatMessages');
+        if (!form || !input || !messagesEl) return;
+
+        var sendBtn = form.querySelector('button[type="submit"]');
+        var history = []; // [{role: 'user'|'assistant', content: string}, ...]
+
+        function addBubble(role, text) {
+            var row = document.createElement('div');
+            row.className = 'chat-msg ' + (role === 'user' ? 'chat-msg-user' : 'chat-msg-assistant');
+            var bubble = document.createElement('div');
+            bubble.className = 'chat-bubble';
+            bubble.textContent = text; // textContent, never innerHTML -- never trust chat content as HTML
+            row.appendChild(bubble);
+            messagesEl.appendChild(row);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            return row;
+        }
+
+        function addSources(row, sources) {
+            if (!sources || !sources.length) return;
+            var wrap = document.createElement('div');
+            wrap.className = 'chat-sources';
+            sources.forEach(function (s) {
+                if (!s || !s.url) return;
+                var chip = document.createElement('a');
+                chip.className = 'chat-source-chip';
+                chip.href = s.url;
+                chip.target = '_blank';
+                chip.rel = 'noopener';
+                chip.textContent = s.title || s.url;
+                wrap.appendChild(chip);
+            });
+            row.appendChild(wrap);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function addTyping() {
+            var row = document.createElement('div');
+            row.className = 'chat-msg chat-msg-assistant';
+            row.id = 'chatTypingRow';
+            var typing = document.createElement('div');
+            typing.className = 'chat-typing';
+            typing.textContent = 'Thinking...';
+            row.appendChild(typing);
+            messagesEl.appendChild(row);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function removeTyping() {
+            var row = document.getElementById('chatTypingRow');
+            if (row) row.remove();
+        }
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var text = input.value.trim();
+            if (!text) return;
+
+            addBubble('user', text);
+            input.value = '';
+            input.disabled = true;
+            if (sendBtn) sendBtn.disabled = true;
+            addTyping();
+
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text, history: history }),
+            })
+                .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+                .then(function (result) {
+                    removeTyping();
+                    if (!result.ok || result.data.error) {
+                        addBubble('assistant', result.data && result.data.error ? result.data.error : 'Something went wrong -- please try again.');
+                        return;
+                    }
+                    var reply = result.data.reply || '';
+                    var row = addBubble('assistant', reply);
+                    addSources(row, result.data.sources);
+                    history.push({ role: 'user', content: text });
+                    history.push({ role: 'assistant', content: reply });
+                    // keep the payload the server sees bounded, same cap the backend already applies
+                    if (history.length > 24) history = history.slice(-24);
+                })
+                .catch(function () {
+                    removeTyping();
+                    addBubble('assistant', 'Network error -- please try again.');
+                })
+                .finally(function () {
+                    input.disabled = false;
+                    if (sendBtn) sendBtn.disabled = false;
+                    input.focus();
+                });
+        });
+    })();
+
+    // ---------- ACCOUNT MENU ----------
+    (function () {
+        var btn = document.getElementById('accountAvatarBtn');
+        var pop = document.getElementById('accountPopover');
+        if (!btn || !pop) return;
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            pop.classList.toggle('open');
+        });
+        document.addEventListener('click', function (e) {
+            if (!pop.contains(e.target) && e.target !== btn) pop.classList.remove('open');
+        });
+    })();
+
+    // ---------- LOADING OVERLAY ON NAVIGATION ----------
+    (function () {
+        var overlay = document.getElementById('pageLoadingOverlay');
+        var form = document.getElementById('searchForm');
+        if (!overlay) return;
+        function show() { overlay.classList.add('active'); }
+        if (form) form.addEventListener('submit', show);
+        Array.prototype.forEach.call(document.querySelectorAll('a[href^="/"]'), function (a) {
+            a.addEventListener('click', function (e) {
+                if (!e.metaKey && !e.ctrlKey) show();
+            });
+        });
+    })();
+</script>
+</body>
+</html>

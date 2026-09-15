@@ -1,0 +1,2180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FC 26/27: Ultra Manager Pro (September 2026 Transfer Update)</title>
+    <style>
+        :root {
+            --bg-dark: #07090e; --panel-bg: #11151d; --panel-border: #232b3a;
+            --accent: #00ffcc; --text-main: #e2e8f0; --text-muted: #64748b;
+            --gold: #facc15; --danger: #f87171; --pitch: #14532d;
+            --fitness-good: #4ade80; --fitness-warn: #fbbf24; --fitness-bad: #ef4444;
+            --info: #3b82f6;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; user-select: none; }
+        body { background: var(--bg-dark); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+
+        /* Sidebar */
+        .sidebar { width: 260px; background: var(--panel-bg); border-right: 1px solid var(--panel-border); display: flex; flex-direction: column; padding: 20px 0; z-index: 10; flex-shrink: 0; }
+        .logo { font-size: 22px; font-weight: 900; font-style: italic; color: var(--accent); text-align: center; margin-bottom: 2px; line-height: 1.2; }
+        .logo span { display: block; font-size: 11px; color: var(--text-muted); letter-spacing: 2px; }
+        .club-name-display { text-align: center; font-size: 13px; font-weight: bold; color: var(--gold); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .nav-item { padding: 12px 22px; color: var(--text-muted); cursor: pointer; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; border-left: 4px solid transparent; display: flex; justify-content: space-between; align-items: center; }
+        .nav-item:hover, .nav-item.active { color: white; background: rgba(255,255,255,0.05); border-left-color: var(--accent); }
+        .badge { background: var(--danger); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; display: none; }
+        
+        .sidebar-stats { margin-top: auto; padding: 15px; background: rgba(0,0,0,0.3); border-top: 1px solid var(--panel-border); }
+        .sb-stat { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; }
+        .sb-stat span:last-child { color: var(--accent); font-weight: bold; font-family: monospace; font-size: 13px; }
+
+        /* Board Confidence Bar */
+        .board-box { margin: 10px 15px; padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--panel-border); border-radius: 6px; }
+        .board-title { font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; margin-bottom: 5px; display: flex; justify-content: space-between; }
+        .board-bar-bg { width: 100%; height: 6px; background: #222; border-radius: 3px; overflow: hidden; }
+        .board-bar-fill { height: 100%; background: var(--accent); transition: width 0.5s; }
+
+        /* Main Content */
+        .main-content { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        .view { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; padding: 20px; flex-direction: column; overflow-y: auto; }
+        .view.active { display: flex; }
+        
+        .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--panel-border); }
+        .header h1 { margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
+        .tourney-badge { background: var(--gold); color: black; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 11px; text-transform: uppercase; }
+
+        /* Squad View */
+        .squad-layout { display: flex; gap: 20px; height: calc(100% - 60px); }
+        .pitch-container { flex: 2; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+        .pitch { min-height: 420px; background: var(--pitch); border-radius: 12px; position: relative; display: flex; flex-direction: column; justify-content: space-evenly; border: 2px solid rgba(255,255,255,0.1); box-shadow: inset 0 0 60px rgba(0,0,0,0.6); padding: 10px 0; }
+        .pitch-row { display: flex; justify-content: center; gap: 12px; }
+        
+        .bench-container, .reserve-container { background: var(--panel-bg); border-radius: 10px; padding: 10px; border: 1px solid var(--panel-border); }
+        .roster-row { display: flex; justify-content: flex-start; gap: 10px; overflow-x: auto; padding-bottom: 5px; }
+        .roster-title { font-size: 11px; font-weight: bold; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .tactics-panel { flex: 1; min-width: 280px; background: var(--panel-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--panel-border); display: flex; flex-direction: column; overflow-y: auto; }
+        .tactic-select { width: 100%; padding: 10px; background: var(--bg-dark); color: white; border: 1px solid var(--panel-border); border-radius: 6px; margin-bottom: 12px; font-size: 13px; outline: none; font-weight: bold; }
+        
+        .stat-bar-container { margin-bottom: 10px; }
+        .stat-bar-label { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; font-weight: bold; }
+        .stat-bar-bg { width: 100%; height: 7px; background: #222; border-radius: 4px; overflow: hidden; }
+        .stat-bar-fill { height: 100%; background: var(--accent); transition: width 0.5s; }
+
+        /* Cards */
+        .slot { width: 88px; height: 130px; position: relative; cursor: pointer; transition: 0.2s; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .slot.empty { border: 2px dashed rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); flex-direction: column; color: rgba(255,255,255,0.3); font-size: 10px; font-weight: bold; }
+        .slot.selected { transform: scale(1.06); box-shadow: 0 0 15px var(--accent); border: 2px solid var(--accent); z-index: 10; }
+        .slot.intl-duty { filter: grayscale(0.8) brightness(0.6); } 
+
+        .fut-card { width: 100%; height: 100%; background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid var(--panel-border); border-radius: 8px; display: flex; flex-direction: column; padding: 6px; pointer-events: none; position: relative; }
+        .fut-card.gold { background: linear-gradient(135deg, #ca8a04, #713f12); border-color: #fef08a; color: #fff; }
+        .fut-card.youth { background: linear-gradient(135deg, #0f766e, #064e3b); border-color: #5eead4; }
+        .fut-card .top-row { display: flex; justify-content: space-between; align-items: flex-start; }
+        .fut-card .ovr { font-size: 15px; font-weight: 900; line-height: 1; }
+        .fut-card .pos { font-size: 9px; font-weight: bold; background: rgba(0,0,0,0.4); padding: 2px 4px; border-radius: 4px; }
+        .fut-card .name { font-size: 10px; font-weight: bold; text-align: center; margin-top: auto; padding-bottom: 2px; border-bottom: 1px solid rgba(255,255,255,0.15); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fut-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; font-size: 8px; margin-top: 3px; font-weight: bold; color: rgba(255,255,255,0.85); }
+        .player-info-row { display: flex; justify-content: space-between; font-size: 8px; color: var(--gold); margin-top: 2px; font-weight: bold; }
+
+        .status-icon { position: absolute; top: -5px; left: -5px; color: white; font-size: 11px; font-weight: bold; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; z-index: 5; background: #000; box-shadow: 0 0 5px #000; }
+        .status-icon.warn { background: var(--fitness-warn); color: black; }
+        .status-icon.injury { background: white; color: var(--danger); border: 1px solid var(--danger); }
+        .status-icon.suspend { background: var(--danger); border: 1px solid white; }
+
+        .fitness-bar-bg { width: 100%; height: 3px; background: rgba(0,0,0,0.5); border-radius: 2px; margin-top: 3px; overflow: hidden; }
+        .fitness-bar-fill { height: 100%; }
+
+        /* Tables & Lists */
+        .table-container { background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 10px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+        th { background: rgba(0,0,0,0.4); padding: 12px 15px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+        td { padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        tr.user-row { background: rgba(0, 255, 204, 0.08); font-weight: bold; color: var(--accent); }
+
+        /* Market & Scouting */
+        .market-filters { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .market-filters input { flex: 1; min-width: 200px; padding: 10px; background: var(--panel-bg); border: 1px solid var(--panel-border); color: white; border-radius: 6px; outline: none; font-size: 13px; }
+        .filter-btn { padding: 8px 14px; background: var(--panel-bg); border: 1px solid var(--panel-border); color: white; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 11px; }
+        .filter-btn.active { background: var(--accent); color: black; border-color: var(--accent); }
+        .market-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 15px; overflow-y: auto; padding-bottom: 20px; max-height: calc(100vh - 200px); }
+        .market-item { width: 100%; }
+        .market-item .slot { width: 100%; height: 140px; pointer-events: auto; }
+        .buy-btn { width: 100%; padding: 6px; margin-top: 5px; background: var(--panel-bg); border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; }
+        .buy-btn:hover:not(:disabled) { background: var(--accent); color: black; }
+        .buy-btn:disabled { border-color: #444; color: #666; cursor: not-allowed; }
+
+        /* Facilities */
+        .facility-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .facility-card { background: var(--panel-bg); border: 1px solid var(--panel-border); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; }
+        .fac-title { font-size: 16px; font-weight: bold; color: var(--accent); margin-bottom: 5px; }
+        .fac-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 15px; flex: 1; line-height: 1.4; }
+        .fac-level { font-size: 13px; font-weight: bold; margin-bottom: 12px; }
+        .upgrade-btn { background: var(--panel-bg); border: 1px solid var(--gold); color: var(--gold); padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 12px; }
+        .upgrade-btn:hover:not(:disabled) { background: var(--gold); color: black; }
+        .upgrade-btn:disabled { border-color: #444; color: #666; cursor: not-allowed; }
+
+        /* Match View */
+        .match-layout { display: flex; flex-direction: column; height: 100%; align-items: center; justify-content: center; }
+        .scoreboard { background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 12px; padding: 25px; width: 100%; max-width: 650px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .match-teams { display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: bold; margin-bottom: 15px; }
+        .match-score { font-size: 42px; color: var(--accent); font-family: monospace; padding: 0 20px; font-weight: 900; }
+        
+        .live-controls { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
+        .mentality-btn { padding: 6px 12px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-muted); border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
+        .mentality-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,255,204,0.1); }
+
+        .play-match-btn { background: var(--accent); color: black; font-size: 15px; font-weight: bold; padding: 14px 35px; border: none; border-radius: 8px; cursor: pointer; margin-top: 15px; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; }
+        .play-match-btn.danger { background: var(--danger); color: white; }
+        .play-match-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+        .commentary-box { background: rgba(0,0,0,0.4); border: 1px solid var(--panel-border); border-radius: 8px; height: 220px; width: 100%; max-width: 650px; margin-top: 15px; padding: 12px; overflow-y: auto; font-size: 12px; text-align: left; display: flex; flex-direction: column; gap: 6px; }
+        .comm-event { padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); line-height: 1.4; }
+
+        /* News & Press */
+        .news-list { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; max-width: 800px; margin: 0 auto; width: 100%; }
+        .news-card { background: var(--panel-bg); border: 1px solid var(--panel-border); border-left: 4px solid var(--accent); padding: 15px; border-radius: 8px; }
+        .news-card.bad { border-left-color: var(--danger); }
+        .news-card.good { border-left-color: var(--fitness-good); }
+        .news-header { font-size: 10px; color: var(--text-muted); margin-bottom: 5px; font-weight: bold; text-transform: uppercase; }
+        .news-title { font-size: 15px; font-weight: bold; color: white; margin-bottom: 5px; }
+        .news-body { font-size: 12px; color: var(--text-main); line-height: 1.4; }
+
+        /* Press Conference Modal Options */
+        .press-box { background: var(--panel-bg); border: 1px solid var(--panel-border); padding: 20px; border-radius: 10px; margin-top: 15px; max-width: 650px; width: 100%; }
+        .press-q { font-size: 14px; font-weight: bold; color: var(--gold); margin-bottom: 12px; }
+        .press-opt { padding: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: 6px; margin-bottom: 8px; cursor: pointer; font-size: 12px; transition: 0.2s; }
+        .press-opt:hover { border-color: var(--accent); background: rgba(0, 255, 204, 0.05); }
+
+        /* Player Details Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-card { background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 12px; padding: 25px; width: 100%; max-width: 450px; position: relative; }
+        .modal-close { position: absolute; top: 15px; right: 15px; color: var(--text-muted); cursor: pointer; font-weight: bold; font-size: 18px; }
+        .modal-btn { padding: 10px 15px; background: var(--accent); color: black; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; width: 100%; font-size: 13px; }
+
+        /* Club Select Overlay */
+        #club-select { padding: 40px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+        .club-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; margin-top: 25px; width: 100%; max-width: 1100px; }
+        .club-card { background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .club-card:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 8px 25px rgba(0, 255, 204, 0.1); }
+        .club-name { font-size: 20px; font-weight: 900; color: white; margin-bottom: 4px; text-transform: uppercase; }
+        .club-budget { font-size: 18px; color: var(--gold); font-weight: bold; font-family: monospace; margin-bottom: 8px; }
+        .club-spend { font-size: 11px; color: var(--accent); font-weight: bold; margin-bottom: 8px; }
+        .club-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+        .manager-setup { width: 100%; max-width: 1100px; margin-top: 18px; padding: 14px 16px; background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: 8px; }
+        .manager-setup label { display: block; color: var(--text-muted); font-size: 11px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+        .manager-controls { display: flex; gap: 10px; flex-wrap: wrap; }
+        .manager-controls select, .manager-controls input { flex: 1; min-width: 220px; padding: 10px; background: var(--bg-dark); color: white; border: 1px solid var(--panel-border); border-radius: 6px; font-size: 13px; }
+        .manager-studio { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr); gap: 16px; margin-top: 14px; }
+        #manager-canvas { width: 100%; height: 260px; display: block; background: linear-gradient(180deg, #172033, #0a0e16); border: 1px solid var(--panel-border); border-radius: 8px; }
+        .manager-customization { display: grid; gap: 10px; align-content: start; }
+        .manager-customization label { color: var(--text-muted); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .manager-customization select { width: 100%; padding: 9px; background: var(--bg-dark); color: white; border: 1px solid var(--panel-border); border-radius: 6px; }
+        @media (max-width: 700px) { .manager-studio { grid-template-columns: 1fr; } }
+
+        /* Toast */
+        #toast { position: fixed; top: 20px; right: 20px; background: var(--accent); color: black; padding: 12px 20px; border-radius: 6px; font-weight: bold; opacity: 0; transition: 0.3s; z-index: 1100; transform: translateX(100%); font-size: 13px; }
+        #toast.show { opacity: 1; transform: translateX(0); }
+        #toast.error { background: var(--danger); color: white; }
+    </style>
+</head>
+<body>
+
+    <div id="toast">Message</div>
+
+    <!-- PLAYER DETAILS MODAL -->
+    <div id="player-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-card" id="player-modal-content"></div>
+    </div>
+
+    <!-- CLUB SELECTION MODAL -->
+    <div id="club-select" class="modal-overlay">
+        <h1 style="color:var(--accent); font-size:36px; margin:0; letter-spacing:1px;">SELECT YOUR CLUB</h1>
+        <p style="color:var(--text-muted); font-size:14px; margin-top:5px;" id="club-select-subtitle">Lead your club to victory in a 22-team League Championship.</p>
+        <div class="manager-setup">
+            <label for="manager-select">Choose your manager</label>
+            <div class="manager-controls">
+                <select id="manager-select" onchange="toggleCustomManager()">
+                    <option value="custom">Create your own manager</option>
+                    <option value="Pep Guardiola">Pep Guardiola</option>
+                    <option value="Jose Mourinho">Jose Mourinho</option>
+                    <option value="Jurgen Klopp">Jurgen Klopp</option>
+                    <option value="Carlo Ancelotti">Carlo Ancelotti</option>
+                    <option value="Mikel Arteta">Mikel Arteta</option>
+                </select>
+                <input id="custom-manager-name" type="text" maxlength="32" placeholder="Enter your manager name..." autocomplete="off">
+            </div>
+            <div class="manager-studio">
+                <canvas id="manager-canvas" aria-label="3D manager preview"></canvas>
+                <div class="manager-customization">
+                    <label for="manager-skin">Skin tone</label>
+                    <select id="manager-skin" onchange="updateManager3D()">
+                        <option value="#f2c6a0">Light</option><option value="#c6865a">Medium</option><option value="#7a4428">Deep</option>
+                    </select>
+                    <label for="manager-hair">Hair style</label>
+                    <select id="manager-hair" onchange="updateManager3D()">
+                        <option value="short">Short</option><option value="fade">Fade</option><option value="curly">Curly</option><option value="none">Shaved</option>
+                    </select>
+                    <label for="manager-hair-color">Hair color</label>
+                    <select id="manager-hair-color" onchange="updateManager3D()">
+                        <option value="#17120f">Black</option><option value="#6b3f22">Brown</option><option value="#d6b36a">Blond</option><option value="#d9dde5">Silver</option>
+                    </select>
+                    <label for="manager-suit">Suit color</label>
+                    <select id="manager-suit" onchange="updateManager3D()">
+                        <option value="#18243b">Navy</option><option value="#111111">Black</option><option value="#7b1e2b">Burgundy</option><option value="#d9dce3">Light Grey</option>
+                    </select>
+                    <label for="manager-build">Body build</label>
+                    <select id="manager-build" onchange="updateManager3D()">
+                        <option value="1">Average</option><option value="0.88">Lean</option><option value="1.15">Broad</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="club-grid" id="club-grid-container"></div>
+    </div>
+
+    <!-- GAME OVER MODAL -->
+    <div id="game-over" class="modal-overlay" style="display:none; flex-direction:column; text-align:center;">
+        <h1 style="color:var(--danger); font-size:50px; margin:0;">YOU ARE FIRED</h1>
+        <p style="color:white; font-size:16px; max-width:450px; margin-top:10px;">The Board of Directors has terminated your contract due to poor board confidence and severe mismanagement.</p>
+        <button class="modal-btn" style="background:var(--danger); color:white; width:auto; padding:12px 30px; margin-top:20px;" onclick="location.reload()">START NEW CAREER</button>
+    </div>
+
+    <div class="sidebar">
+        <div class="logo">FC 26/27 MANAGER<span>ULTRA EDITION · SEPTEMBER '26 WINDOW</span></div>
+        <div class="club-name-display" id="sidebar-club-name">CLUB NAME</div>
+        
+        <div class="nav-item active" onclick="nav('squad')">Squad & Tactics</div>
+        <div class="nav-item" onclick="nav('league')">League Standings</div>
+        <div class="nav-item" onclick="nav('market')">Transfer Market</div>
+        <div class="nav-item" onclick="nav('facilities')">Club Facilities</div>
+        <div class="nav-item" onclick="nav('match')">Play Match</div>
+        <div class="nav-item" onclick="nav('news')">News & Press <span class="badge" id="news-badge">0</span></div>
+        
+        <div class="board-box">
+            <div class="board-title"><span>Board Trust</span><span id="board-pct">80%</span></div>
+            <div class="board-bar-bg"><div class="board-bar-fill" id="board-bar" style="width:80%"></div></div>
+        </div>
+
+        <div class="sidebar-stats">
+            <div class="sb-stat" style="color:var(--danger)"><span>Weekly Wages</span><span id="sb-wages">-$1.0M</span></div>
+            <div class="sb-stat"><span>Bank Balance</span><span id="sb-budget">$0.0M</span></div>
+            <div class="sb-stat"><span>Squad Morale</span><span id="sb-morale">80%</span></div>
+            <div class="sb-stat"><span>League Rank</span><span id="sb-rank">1st</span></div>
+            <div class="sb-stat"><span>Match Week</span><span id="sb-week">1 / 14</span></div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <!-- SQUAD VIEW -->
+        <div id="view-squad" class="view active">
+            <div class="header">
+                <h1>Squad Management</h1>
+                <div class="tourney-badge" id="intl-warning" style="display:none; background:var(--danger); color:white;">✈️ INTERNATIONAL BREAK</div>
+            </div>
+            <div class="squad-layout">
+                <div class="pitch-container">
+                    <div class="pitch" id="pitch-area"></div>
+                    <div class="bench-container">
+                        <div class="roster-title">SUBSTITUTES (Slots 12-18)</div>
+                        <div class="roster-row" id="row-sub"></div>
+                    </div>
+                    <div class="reserve-container">
+                        <div class="roster-title">RESERVES (Slots 19-25)</div>
+                        <div class="roster-row" id="row-res"></div>
+                    </div>
+                </div>
+                
+                <div class="tactics-panel">
+                    <h3 style="margin-top:0; font-size:14px; text-transform:uppercase;">Formation</h3>
+                    <select class="tactic-select" id="formation-select" onchange="changeFormation()">
+                        <option value="4-3-3">4-3-3 Attacking</option>
+                        <option value="4-4-2">4-4-2 Classic</option>
+                        <option value="4-2-3-1">4-2-3-1 Control</option>
+                        <option value="3-5-2">3-5-2 Wingbacks</option>
+                    </select>
+
+                    <h3 style="margin-top: 5px; font-size:14px; text-transform:uppercase;">Tactical Style</h3>
+                    <select class="tactic-select" id="tactic-select" onchange="updateTeamStats()">
+                        <option value="balanced">Balanced (Standard)</option>
+                        <option value="gegenpress">Gegenpressing (+DEF, +PAC, High Fatigue)</option>
+                        <option value="tikitaka">Tiki-Taka (+PAS, Low Fatigue)</option>
+                        <option value="parkbus">Park The Bus (+DEF, -SHO)</option>
+                    </select>
+
+                    <h3 style="margin-top: 5px; font-size:14px; text-transform:uppercase;">Starting XI Ratings</h3>
+                    <div class="stat-bar-container"><div class="stat-bar-label"><span>ATTACK</span><span id="stat-atk">0</span></div><div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-atk" style="width:0%"></div></div></div>
+                    <div class="stat-bar-container"><div class="stat-bar-label"><span>MIDFIELD</span><span id="stat-mid">0</span></div><div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-mid" style="width:0%"></div></div></div>
+                    <div class="stat-bar-container"><div class="stat-bar-label"><span>DEFENSE</span><span id="stat-def">0</span></div><div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-def" style="width:0%"></div></div></div>
+                    
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 15px; line-height: 1.5; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px;">
+                        <b>Pro Tips:</b><br>
+                        • Click <b>any player card</b> to open detailed attributes & individual training.<br>
+                        • Swap starters with reserves to manage fatigue.<br>
+                        • Players out of position suffer 40% stat penalties.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LEAGUE VIEW -->
+        <div id="view-league" class="view">
+            <div class="header">
+                <h1>League Championship Table</h1>
+                <div class="tourney-badge" id="season-length-badge">21 Weeks Season</div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Pos</th><th>Club</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th>
+                        </tr>
+                    </thead>
+                    <tbody id="league-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- MARKET VIEW -->
+        <div id="view-market" class="view">
+            <div class="header">
+                <h1>Transfer Market & Scouting</h1>
+                <div class="tourney-badge" id="market-scout-badge">Market Loading...</div>
+            </div>
+            <div class="market-filters">
+                <input type="text" id="market-search" placeholder="Search player name..." oninput="queueMarketRender()">
+                <button class="filter-btn active" onclick="setMarketFilter('ALL', this)">ALL</button>
+                <button class="filter-btn" onclick="setMarketFilter('FWD', this)">FWD</button>
+                <button class="filter-btn" onclick="setMarketFilter('MID', this)">MID</button>
+                <button class="filter-btn" onclick="setMarketFilter('DEF', this)">DEF</button>
+                <button class="filter-btn" onclick="setMarketFilter('GK', this)">GK</button>
+            </div>
+            <div class="market-grid" id="market-grid"></div>
+        </div>
+
+        <!-- FACILITIES VIEW -->
+        <div id="view-facilities" class="view">
+            <div class="header">
+                <h1>Club Facilities</h1>
+                <div class="tourney-badge">Invest to Boost Revenue & Growth</div>
+            </div>
+            <div class="facility-grid">
+                <div class="facility-card">
+                    <div class="fac-title">🏟️ Stadium Expansion</div>
+                    <div class="fac-desc">Increases matchday ticket revenue permanently. Crucial to cover high squad wages.</div>
+                    <div class="fac-level">Current Level: <span id="fac-stad-lvl" style="color:var(--accent)">1</span> / 5</div>
+                    <button class="upgrade-btn" id="btn-upg-stad" onclick="upgradeFacility('stadium')">Upgrade ($15.0M)</button>
+                </div>
+                <div class="facility-card">
+                    <div class="fac-title">🏃 Training Complex</div>
+                    <div class="fac-desc">Accelerates fitness recovery between matches and boosts youth growth at season end.</div>
+                    <div class="fac-level">Current Level: <span id="fac-train-lvl" style="color:var(--accent)">1</span> / 5</div>
+                    <button class="upgrade-btn" id="btn-upg-train" onclick="upgradeFacility('training')">Upgrade ($10.0M)</button>
+                </div>
+                <div class="facility-card">
+                    <div class="fac-title">🏥 Medical Center</div>
+                    <div class="fac-desc">Reduces chance of injuries during matches and accelerates recovery times.</div>
+                    <div class="fac-level">Current Level: <span id="fac-med-lvl" style="color:var(--accent)">1</span> / 5</div>
+                    <button class="upgrade-btn" id="btn-upg-med" onclick="upgradeFacility('medical')">Upgrade ($12.0M)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MATCH VIEW -->
+        <div id="view-match" class="view">
+            <div class="header">
+                <h1>Matchday Console</h1>
+                <div class="tourney-badge" id="match-opp-info">Opponent: TBD</div>
+            </div>
+            <div class="match-layout">
+                <div class="scoreboard">
+                    <div class="match-time" id="match-clock" style="color:var(--text-muted); font-size:13px; font-weight:bold;">WAITING FOR KICKOFF</div>
+                    <div class="match-teams">
+                        <div style="flex: 1; text-align: right;" id="scoreboard-home">YOUR CLUB</div>
+                        <div class="match-score"><span id="score-home">0</span> - <span id="score-away">0</span></div>
+                        <div style="flex: 1; text-align: left;" id="scoreboard-opp">FC OPPONENT</div>
+                    </div>
+                    <div class="live-controls">
+                        <button class="mentality-btn" onclick="setMentality('defensive', this)">Defensive</button>
+                        <button class="mentality-btn active" onclick="setMentality('balanced', this)">Balanced</button>
+                        <button class="mentality-btn" onclick="setMentality('attacking', this)">Attacking</button>
+                        <button class="mentality-btn" onclick="setMentality('allout', this)">All-Out Attack</button>
+                    </div>
+                </div>
+                <div class="commentary-box" id="commentary">
+                    <div class="comm-event" style="color: var(--text-muted);">Ensure your Starting XI is fully filled with fit players before kicking off!</div>
+                </div>
+                <button class="play-match-btn" id="btn-play" onclick="startMatch()">KICK OFF MATCH</button>
+            </div>
+        </div>
+
+        <!-- NEWS VIEW -->
+        <div id="view-news" class="view">
+            <div class="header">
+                <h1>Press Room & Inbox</h1>
+                <div class="tourney-badge">Club Communications</div>
+            </div>
+            <div class="news-list" id="news-container"></div>
+            <div id="press-conference-container" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script>
+        // GLOBAL BASE PLAYER DATABASE
+        const db = [
+            // REAL MADRID
+            [1, "Mbappe", "FWD", 15.0, 97, 90, 80, 92, 36, 78, "FRA"], [3, "Vinicius", "FWD", 13.0, 95, 82, 81, 90, 29, 68, "BRA"], [201, "Rodrygo", "FWD", 9.0, 88, 81, 79, 86, 32, 65, "BRA"],
+            [11, "Bellingham", "MID", 11.0, 82, 84, 85, 88, 78, 82, "ENG"], [15, "Valverde", "MID", 9.0, 88, 81, 84, 84, 80, 82, "URU"], [202, "Tchouameni", "MID", 7.0, 72, 70, 79, 78, 82, 83, "FRA"],
+            [27, "Rudiger", "DEF", 6.0, 82, 43, 71, 67, 84, 86, "GER"], [203, "Militao", "DEF", 6.5, 85, 50, 71, 72, 85, 82, "BRA"], [204, "Dumfries", "DEF", 20.0, 85, 70, 72, 78, 75, 82, "NED"], [205, "Cucurella", "DEF", 55.0, 80, 45, 78, 80, 79, 75, "ESP"],
+            [32, "Courtois", "GK", 6.0, 85, 89, 76, 93, 46, 90, "BEL"],
+            // MAN CITY (Rodri & Bernardo Silva departed for Barcelona/Real Madrid this window)
+            [2, "Haaland", "FWD", 14.5, 89, 93, 66, 80, 45, 88, "NOR"], [206, "Foden", "FWD", 9.5, 85, 82, 86, 89, 45, 60, "ENG"], [207, "Grealish", "FWD", 6.0, 78, 76, 84, 88, 45, 70, "ENG"],
+            [12, "De Bruyne", "MID", 10.5, 72, 85, 94, 87, 65, 78, "BEL"], [13, "Enzo Fernandez", "MID", 60.0, 68, 78, 88, 85, 78, 80, "ARG"], [208, "Reijnders", "MID", 55.0, 75, 78, 86, 87, 65, 74, "NED"],
+            [22, "Dias", "DEF", 7.0, 62, 39, 66, 68, 89, 87, "POR"], [115, "Akanji", "DEF", 3.5, 81, 45, 74, 76, 82, 80, "SUI"], [29, "Gvardiol", "DEF", 5.0, 78, 54, 74, 78, 83, 82, "CRO"], [209, "Walker", "DEF", 5.5, 90, 63, 76, 77, 80, 82, "ENG"],
+            [33, "Ederson", "GK", 5.5, 83, 81, 93, 88, 64, 86, "BRA"],
+            // ARSENAL
+            [6, "Saka", "FWD", 10.0, 85, 81, 79, 87, 65, 73, "ENG"], [214, "Martinelli", "FWD", 7.5, 89, 78, 75, 85, 45, 68, "BRA"], [215, "Havertz", "FWD", 6.0, 78, 80, 79, 82, 50, 75, "GER"],
+            [14, "Odegaard", "MID", 9.0, 76, 79, 89, 89, 63, 67, "NOR"], [16, "Rice", "MID", 8.0, 73, 68, 81, 78, 83, 84, "ENG"], [219, "Partey", "MID", 5.0, 68, 71, 82, 80, 81, 82, "GHA"],
+            [23, "Saliba", "DEF", 7.0, 82, 40, 70, 73, 84, 82, "FRA"], [217, "Gabriel", "DEF", 6.0, 72, 38, 65, 65, 85, 86, "BRA"], [216, "White", "DEF", 5.5, 76, 50, 77, 78, 81, 78, "ENG"], [220, "Zinchenko", "DEF", 4.5, 70, 68, 84, 83, 75, 70, "UKR"],
+            [218, "Raya", "GK", 4.0, 82, 80, 85, 84, 40, 80, "ESP"],
+            // LIVERPOOL (Salah to Trabzonspor, Konate to Real Madrid this window)
+            [4, "Isak", "FWD", 90.0, 89, 90, 75, 85, 30, 82, "SWE"], [102, "Nunez", "FWD", 3.5, 90, 78, 72, 77, 43, 84, "URU"], [210, "Diaz", "FWD", 8.0, 91, 75, 78, 87, 35, 70, "COL"],
+            [18, "Mac Allister", "MID", 5.5, 71, 78, 84, 82, 72, 77, "ARG"], [107, "Szoboszlai", "MID", 4.5, 80, 82, 84, 83, 62, 74, "HUN"], [213, "Gravenberch", "MID", 4.0, 78, 72, 80, 82, 70, 75, "NED"],
+            [21, "Van Dijk", "DEF", 7.5, 78, 60, 71, 72, 89, 86, "NED"], [24, "Trent A-A", "DEF", 7.5, 76, 71, 90, 80, 80, 73, "ENG"], [212, "Jacquet", "DEF", 55.0, 80, 40, 68, 72, 80, 79, "FRA"], [211, "Robertson", "DEF", 6.0, 80, 60, 82, 80, 79, 75, "SCO"],
+            [31, "Alisson", "GK", 6.0, 86, 85, 85, 89, 54, 90, "BRA"],
+            // BAYERN
+            [5, "Kane", "FWD", 11.5, 69, 93, 84, 83, 49, 83, "ENG"], [228, "Sane", "FWD", 8.5, 91, 82, 80, 86, 40, 68, "GER"], [229, "Gnabry", "FWD", 6.0, 84, 82, 78, 84, 45, 70, "GER"],
+            [221, "Musiala", "MID", 9.5, 86, 80, 82, 92, 50, 62, "GER"], [223, "Kimmich", "MID", 8.0, 70, 76, 88, 84, 80, 78, "GER"], [224, "Goretzka", "MID", 6.5, 78, 82, 82, 82, 80, 85, "GER"],
+            [26, "Davies", "DEF", 6.0, 95, 68, 77, 84, 76, 77, "CAN"], [225, "Upamecano", "DEF", 5.5, 85, 45, 68, 70, 83, 85, "FRA"], [226, "Kim", "DEF", 5.5, 80, 35, 65, 65, 84, 86, "KOR"], [248, "Mazraoui", "DEF", 4.0, 82, 65, 78, 82, 75, 72, "MAR"],
+            [227, "Neuer", "GK", 5.5, 84, 88, 90, 85, 50, 88, "GER"],
+            // INTER MILAN
+            [230, "Lautaro", "FWD", 9.5, 80, 88, 75, 85, 40, 82, "ARG"], [231, "Thuram", "FWD", 6.5, 88, 80, 72, 82, 35, 80, "FRA"], [105, "Arnautovic", "FWD", 2.0, 65, 78, 70, 75, 40, 80, "AUT"],
+            [17, "Barella", "MID", 6.0, 78, 74, 83, 84, 76, 78, "ITA"], [232, "Calhanoglu", "MID", 6.5, 70, 82, 87, 84, 72, 70, "TUR"], [233, "Mkhitaryan", "MID", 4.5, 75, 78, 82, 83, 60, 68, "ARM"],
+            [30, "Bastoni", "DEF", 4.5, 73, 38, 75, 74, 85, 82, "ITA"], [234, "Dimarco", "DEF", 5.5, 82, 75, 84, 82, 76, 72, "ITA"], [235, "Dumfries", "DEF", 4.0, 85, 70, 72, 78, 75, 82, "NED"], [236, "Pavard", "DEF", 4.5, 72, 55, 75, 76, 84, 80, "FRA"],
+            [36, "Sommer", "GK", 3.5, 82, 80, 83, 86, 52, 86, "SUI"]
+        ];
+
+        // Real ages for the core database of star players (kept accurate rather than randomized).
+        const realAges = {
+            "Mbappe":27,"Vinicius":25,"Rodrygo":25,"Bellingham":22,"Valverde":27,"Tchouameni":25,
+            "Rudiger":33,"Militao":28,"Carvajal":34,"Mendy":31,"Courtois":34,
+            "Haaland":26,"Foden":26,"Grealish":30,"De Bruyne":35,"Rodri":30,"Silva":31,
+            "Dias":29,"Akanji":31,"Gvardiol":24,"Walker":36,"Ederson":32,
+            "Saka":24,"Martinelli":25,"Havertz":27,"Odegaard":27,"Rice":27,"Partey":33,
+            "Saliba":25,"Gabriel":28,"White":28,"Zinchenko":29,"Raya":31,
+            "Salah":34,"Nunez":27,"Diaz":29,"Mac Allister":27,"Szoboszlai":26,"Gravenberch":24,
+            "Van Dijk":35,"Trent A-A":27,"Konate":27,"Robertson":32,"Alisson":33,
+            "Kane":33,"Sane":30,"Gnabry":31,"Musiala":23,"Kimmich":31,"Goretzka":31,
+            "Davies":26,"Upamecano":27,"Kim":26,"Neuer":40,"Mazraoui":24,
+            "Lautaro":28,"Thuram":28,"Barella":28,"Calhanoglu":32,"Mkhitaryan":37,
+            "Bastoni":27,"Dimarco":28,"Dumfries":30,"Pavard":30,"Sommer":37
+        };
+
+        const marketValueOverrides = {
+            "Yamal": 220.0, "Lamine Yamal": 220.0, "Mbappe": 220.0,
+            "Haaland": 200.0, "Vinicius": 180.0, "Vinicius Junior": 180.0,
+            "Bellingham": 180.0, "Jude Bellingham": 180.0, "Saka": 150.0,
+            "Bukayo Saka": 150.0, "Wirtz": 140.0, "Florian Wirtz": 140.0,
+            "Musiala": 140.0, "Jamal Musiala": 140.0, "Pedri": 120.0,
+            "Rodri": 110.0, "Isak": 120.0, "Alexander Isak": 120.0,
+            "Kvaratskhelia": 100.0, "Khvicha Kvaratskhelia": 100.0
+        };
+
+        function getRealisticMarketValue(name, rating, age) {
+            if (marketValueOverrides[name] !== undefined) return marketValueOverrides[name];
+            const ageFactor = age <= 21 ? 1.2 : age >= 30 ? 0.65 : 1.0;
+            const value = 12 * Math.exp(0.15 * (rating - 70)) * ageFactor;
+            return Math.max(0.5, Math.round(value * 10) / 10);
+        }
+
+        let allPlayers = db.map(p => {
+            let ovr = p[2]==="FWD" ? (p[4]*0.2 + p[5]*0.4 + p[7]*0.3 + p[9]*0.1) :
+                      p[2]==="MID" ? (p[6]*0.4 + p[7]*0.3 + p[5]*0.1 + p[8]*0.2) :
+                      p[2]==="DEF" ? (p[8]*0.5 + p[9]*0.3 + p[4]*0.1 + p[6]*0.1) : (p[4]+p[5]+p[6]+p[7]+p[9])/5;
+            let age = realAges[p[1]] || (Math.floor(Math.random() * 10) + 21);
+            return { 
+                id: p[0], name: p[1], pos: p[2], price: getRealisticMarketValue(p[1], Math.round(ovr) + 4, age), pac: p[4], sho: p[5], 
+                pas: p[6], dri: p[7], def: p[8], phy: p[9], nat: p[10], 
+                ovr: Math.round(ovr) + 4, age: age, morale: 80, injuryWeeks: 0, suspended: false, isYouth: false
+            };
+        });
+
+        function makeRealPlayer(id, name, pos, nat, tier) {
+            const r = () => Math.floor(Math.random() * 6) - 3;
+            let pac, sho, pas, dri, def, phy;
+            if (pos === "FWD") {
+                pac = Math.min(99, tier + 4 + r()); sho = Math.min(99, tier + 2 + r());
+                dri = Math.min(99, tier + r()); pas = Math.max(40, tier - 8 + r());
+                phy = Math.max(50, tier - 6 + r()); def = Math.floor(Math.random() * 20) + 30;
+            } else if (pos === "MID") {
+                pas = Math.min(99, tier + 3 + r()); dri = Math.min(99, tier + r());
+                pac = Math.max(55, tier - 5 + r()); sho = Math.max(50, tier - 8 + r());
+                def = Math.max(50, tier - 6 + r()); phy = Math.max(55, tier - 3 + r());
+            } else if (pos === "DEF") {
+                def = Math.min(99, tier + 3 + r()); phy = Math.min(99, tier + 2 + r());
+                pac = Math.max(55, tier - 5 + r()); pas = Math.max(50, tier - 8 + r());
+                dri = Math.max(45, tier - 10 + r()); sho = Math.floor(Math.random() * 25) + 30;
+            } else { // GK
+                pac = tier - 5; sho = tier - 3; pas = tier - 2; dri = tier - 4; phy = tier + 1;
+                def = Math.floor(Math.random() * 15) + 40;
+            }
+            const age = 18 + Math.floor(Math.random() * 14);
+            const price = getRealisticMarketValue(name, tier, age);
+            return { id, name, pos, price, pac, sho, pas, dri, def, phy, nat, ovr: tier, age, morale: 80, injuryWeeks: 0, suspended: false, isYouth: false };
+        }
+
+        let nextRealId = 5000;
+        function registerRealPlayers(roster) {
+            return roster.map(([name, pos, nat, tier]) => {
+                const id = nextRealId++;
+                allPlayers.push(makeRealPlayer(id, name, pos, nat, tier));
+                return id;
+            });
+        }
+        function makeClubRoster(xiRoster, benchRoster) {
+            return { xi: registerRealPlayers(xiRoster), bench: registerRealPlayers(benchRoster) };
+        }
+
+        const benchIds = {
+            rma: registerRealPlayers([["Endrick","FWD","BRA",84],["Brahim Diaz","MID","ESP",81],["Camavinga","MID","FRA",84],["Ceballos","MID","ESP",79],["Alaba","DEF","AUT",83],["Lucas Vazquez","DEF","ESP",78],["Lunin","GK","UKR",79]]),
+            mci: registerRealPlayers([["Savinho","FWD","BRA",81],["Doku","FWD","BEL",83],["Kovacic","MID","CRO",80],["Nunes","MID","POR",79],["Stones","DEF","ENG",81],["Ake","DEF","NED",79],["Ortega","GK","GER",77]]),
+            ars: registerRealPlayers([["Trossard","FWD","BEL",82],["Jesus","FWD","BRA",81],["Merino","MID","ESP",80],["Jorginho","MID","ITA",78],["Kiwior","DEF","POL",77],["Calafiori","DEF","ITA",78],["Neto","GK","ARG",76]]),
+            liv: registerRealPlayers([["Jota","FWD","POR",82],["Gakpo","FWD","NED",82],["Elliott","MID","ENG",78],["Jones","MID","ENG",77],["Quansah","DEF","ENG",76],["Gomez","DEF","ENG",78],["Kelleher","GK","IRL",76]]),
+            bay: registerRealPlayers([["Coman","FWD","FRA",83],["Tel","FWD","FRA",80],["Muller","MID","GER",82],["Pavlovic","MID","SRB",78],["Laimer","MID","AUT",79],["Boey","DEF","BEL",77],["Ulreich","GK","GER",74]]),
+            int: registerRealPlayers([["Frattesi","MID","ITA",80],["Asllani","MID","ALB",77],["Darmian","DEF","ITA",78],["Acerbi","DEF","ITA",80],["Carlos Augusto","DEF","BRA",78],["Correa","FWD","ARG",77],["Martinez","GK","ESP",77]]),
+        };
+
+        const psgSquad = makeClubRoster(
+            [["Dembele","FWD","FRA",89],["Barcola","FWD","FRA",85],["Doue","FWD","FRA",83],["Vitinha","MID","POR",85],["Fabian Ruiz","MID","ESP",83],["Zaire-Emery","MID","FRA",83],["Hakimi","DEF","MAR",86],["Marquinhos","DEF","BRA",86],["Pacho","DEF","ECU",81],["Nuno Mendes","DEF","POR",84],["Donnarumma","GK","ITA",88]],
+            [["Kolo Muani","FWD","FRA",83],["Lee Kang-in","MID","KOR",80],["Ugarte","MID","URU",80],["Ramos","DEF","BRA",79],["Beraldo","DEF","BRA",78],["Neves","MID","POR",79],["Safonov","GK","RUS",76]]
+        );
+        const barSquad = makeClubRoster(
+            [["Lewandowski","FWD","POL",88],["Raphinha","FWD","BRA",87],["Yamal","FWD","ESP",88],["Pedri","MID","ESP",86],["De Jong","MID","NED",85],["Gavi","MID","ESP",82],["Cubarsi","DEF","ESP",81],["Araujo","DEF","URU",83],["Kounde","DEF","FRA",84],["Balde","DEF","ESP",82],["Ter Stegen","GK","GER",87]],
+            [["Ferran Torres","FWD","ESP",79],["Fermin Lopez","MID","ESP",79],["Casado","MID","ESP",76],["Christensen","DEF","DEN",79],["Inigo Martinez","DEF","ESP",80],["Bardghji","FWD","SWE",77],["Szczesny","GK","POL",80]]
+        );
+        const cheSquad = makeClubRoster(
+            [["Palmer","MID","ENG",87],["Jackson","FWD","SEN",80],["Madueke","FWD","ENG",79],["Nkunku","FWD","FRA",81],["Enzo Fernandez","MID","ARG",85],["Caicedo","MID","ECU",83],["Reece James","DEF","ENG",83],["Colwill","DEF","ENG",79],["Cucurella","DEF","ESP",80],["Gusto","DEF","FRA",78],["Sanchez","GK","ARG",79]],
+            [["Mudryk","FWD","UKR",78],["Dewsbury-Hall","MID","ENG",77],["Lavia","MID","BEL",77],["Chalobah","DEF","ENG",77],["Disasi","DEF","FRA",77],["Fofana","DEF","FRA",78],["Jorgensen","GK","DEN",76]]
+        );
+        const totSquad = makeClubRoster(
+            [["Son","FWD","KOR",87],["Solanke","FWD","ENG",80],["Johnson","FWD","ENG",79],["Maddison","MID","ENG",83],["Bissouma","MID","MLI",79],["Sarr","MID","SEN",79],["Cristian Romero","DEF","ARG",83],["Van de Ven","DEF","NED",80],["Udogie","DEF","ITA",79],["Porro","DEF","ESP",80],["Guglielmo Vicario","GK","ITA",81]],
+            [["Richarlison","FWD","BRA",79],["Kulusevski","MID","SWE",81],["Bentancur","MID","URU",79],["Bergvall","MID","SWE",77],["Davies","DEF","WAL",76],["Dragusin","DEF","ROU",77],["Forster","GK","ENG",74]]
+        );
+        const dorSquad = makeClubRoster(
+            [["Guirassy","FWD","GUI",82],["Adeyemi","FWD","GER",80],["Brandt","FWD","GER",80],["Can","MID","GER",80],["Gross","MID","GER",79],["Nmecha","MID","GER",77],["Schlotterbeck","DEF","GER",82],["Sule","DEF","GER",80],["Ryerson","DEF","NOR",77],["Bensebaini","DEF","ALG",79],["Kobel","GK","SUI",83]],
+            [["Malen","FWD","NED",79],["Bynoe-Gittens","FWD","ENG",78],["Reyna","MID","USA",76],["Ozcan","MID","GER",76],["Anton","DEF","GER",76],["Meunier","DEF","BEL",76],["Meyer","GK","GER",72]]
+        );
+        const milSquad = makeClubRoster(
+            [["Leao","FWD","POR",86],["Pulisic","FWD","USA",83],["Chukwueze","FWD","NGA",78],["Reijnders","MID","NED",82],["Fofana","MID","FRA",79],["Loftus-Cheek","MID","ENG",78],["Tomori","DEF","ENG",80],["Thiaw","DEF","GER",79],["Theo Hernandez","DEF","FRA",84],["Calabria","DEF","ITA",77],["Maignan","GK","FRA",86]],
+            [["Okafor","FWD","SUI",77],["Jovic","FWD","SRB",76],["Bennacer","MID","ALG",79],["Musah","MID","USA",77],["Gabbia","DEF","ITA",76],["Kalulu","DEF","FRA",77],["Sportiello","GK","ITA",73]]
+        );
+        const atmSquad = makeClubRoster(
+            [["Griezmann","FWD","FRA",87],["Julian Alvarez","FWD","ARG",85],["Sorloth","FWD","NOR",80],["Koke","MID","ESP",80],["De Paul","MID","ARG",80],["Barrios","MID","COL",78],["Gimenez","DEF","URU",83],["Witsel","DEF","BEL",78],["Le Normand","DEF","ESP",80],["Molina","DEF","ARG",78],["Oblak","GK","SVN",88]],
+            [["Lino","FWD","BRA",78],["Riquelme","FWD","ARG",74],["Saul","MID","ESP",77],["Nico Gonzalez","MID","ESP",76],["Reinildo","DEF","MOZ",76],["Ruggeri","DEF","ARG",76],["Musso","GK","ARG",79]]
+        );
+        const napSquad = makeClubRoster(
+            [["Kvaratskhelia","FWD","GEO",87],["Lukaku","FWD","BEL",83],["Politano","FWD","ITA",79],["McTominay","MID","SCO",80],["Anguissa","MID","CMR",80],["Lobotka","MID","SVK",81],["Di Lorenzo","DEF","ITA",81],["Rrahmani","DEF","KVX",80],["Buongiorno","DEF","ITA",80],["Olivera","DEF","URU",78],["Meret","GK","ITA",80]],
+            [["Raspadori","FWD","ITA",78],["Simeone","FWD","ARG",76],["Gilmour","MID","SCO",76],["Folorunsho","MID","ITA",75],["Juan Jesus","DEF","BRA",76],["Mario Rui","DEF","POR",75],["Contini","GK","ITA",70]]
+        );
+        const manuSquad = makeClubRoster(
+            [["Zirkzee","FWD","NED",79],["Garnacho","FWD","ARG",80],["Mbeumo","FWD","CMR",82],["Cunha","FWD","BRA",82],["Bruno Fernandes","MID","POR",87],["Mainoo","MID","ENG",80],["Mazraoui","DEF","MAR",79],["de Ligt","DEF","NED",82],["Yoro","DEF","FRA",80],["Dorgu","DEF","DEN",76],["Onana","GK","CMR",81]],
+            [["Hojlund","FWD","DEN",80],["Diallo","FWD","IVC",77],["Ugarte","MID","URU",79],["Fernandez","MID","ARG",76],["Shaw","DEF","ENG",78],["Martinez","DEF","ARG",76],["Bayindir","GK","TUR",76]]
+        );
+        const newSquad = makeClubRoster(
+            [["Isak","FWD","SWE",85],["Gordon","FWD","ENG",82],["Barnes","FWD","ENG",79],["Guimaraes","MID","BRA",85],["Tonali","MID","ITA",83],["Joelinton","MID","BRA",80],["Trippier","DEF","ENG",80],["Schar","DEF","SUI",80],["Botman","DEF","NED",83],["Hall","DEF","ENG",77],["Pope","GK","ENG",81]],
+            [["Murphy","FWD","ENG",76],["Willock","MID","ENG",76],["Longstaff","MID","ENG",75],["Livramento","DEF","ENG",76],["Krafth","DEF","SWE",73],["Burn","DEF","ENG",75],["Dubravka","GK","SVK",76]]
+        );
+        const lezSquad = makeClubRoster(
+            [["Openda","FWD","BEL",84],["Simons","MID","NED",85],["Sesko","FWD","SVN",81],["Baku","DEF","GER",76],["Schlager","MID","AUT",78],["Orban","DEF","HUN",78],["Raum","DEF","GER",79],["Lukeba","DEF","FRA",80],["Gulacsi","GK","HUN",79],["Nusa","FWD","NOR",77],["Haidara","MID","MLI",76]],
+            [["Poulsen","FWD","DEN",73],["Kampl","MID","SVN",75],["Henrichs","DEF","GER",75],["Klostermann","DEF","GER",76],["Vermeeren","MID","BEL",74],["Elmas","MID","MKD",78],["Blaswich","GK","GER",73]]
+        );
+        const ataSquad = makeClubRoster(
+            [["Lookman","FWD","NGA",84],["De Ketelaere","FWD","BEL",78],["Retegui","FWD","ITA",79],["Pasalic","MID","CRO",79],["Ederson","MID","BRA",80],["De Roon","MID","NED",76],["Scalvini","DEF","ITA",81],["Djimsiti","DEF","ALB",76],["Kolasinac","DEF","BIH",74],["Ruggeri","DEF","ITA",76],["Carnesecchi","GK","ITA",78]],
+            [["Zappacosta","DEF","ITA",76],["Bellanova","DEF","ITA",76],["Samardzic","MID","SRB",78],["Zaniolo","FWD","ITA",76],["Brescianini","MID","ITA",75],["Toloi","DEF","BRA",76],["Rui Patricio","GK","POR",78]]
+        );
+        const juvSquad = makeClubRoster(
+            [["Vlahovic","FWD","SRB",84],["Yildiz","MID","TUR",79],["Chiesa","FWD","ITA",80],["Koopmeiners","MID","NED",83],["Locatelli","MID","ITA",81],["McKennie","MID","USA",78],["Bremer","DEF","BRA",84],["Cambiaso","DEF","ITA",79],["Kalulu","DEF","FRA",77],["Cabal","DEF","COL",76],["Di Gregorio","GK","ITA",78]],
+            [["Thuram","MID","FRA",80],["Conceicao","FWD","POR",77],["Weah","FWD","USA",76],["Douglas Luiz","MID","BRA",79],["Nico Gonzalez","FWD","ARG",81],["Danilo","DEF","BRA",77],["Perin","GK","ITA",75]]
+        );
+        const benSquad = makeClubRoster(
+            [["Pavlidis","FWD","GRE",80],["Pedro Goncalves","MID","POR",81],["Kokcu","MID","TUR",79],["Silva","DEF","POR",81],["Otamendi","DEF","ARG",76],["Trubin","GK","UKR",79],["Aursnes","MID","NOR",75],["Carreras","DEF","ESP",76],["Amdouni","FWD","SUI",76],["Barreiro","MID","URU",76],["Renato Sanches","MID","POR",76]],
+            [["Akturkoglu","FWD","TUR",77],["Fredrik Aursnes","MID","NOR",75],["Florentino","MID","POR",76],["Bah","DEF","GAM",75],["Tomas Araujo","DEF","POR",76],["Di Maria","FWD","ARG",78],["Samuel Soares","GK","POR",71]]
+        );
+        const spoSquad = makeClubRoster(
+            [["Franculino","FWD","POR",78],["Trincao","FWD","POR",78],["Geny Catamo","FWD","MOZ",75],["Daniel Braganca","MID","POR",77],["Morita","MID","JPN",76],["Hjulmand","MID","DEN",78],["Goncalo Inacio","DEF","POR",80],["St Juste","DEF","NED",77],["Quenda","FWD","POR",78],["Debast","DEF","BEL",76],["Israel","GK","POR",76]],
+            [["Esgaio","DEF","POR",73],["Maximiano","GK","ESP",75],["Nuno Santos","FWD","POR",75],["Coates","DEF","URU",76],["Fresneda","DEF","ESP",75],["Bragança","MID","POR",75],["Diomansy Kamara","FWD","SEN",73]]
+        );
+        const marSquad = makeClubRoster(
+            [["Mason Greenwood","FWD","ENG",79],["Ismaila Sarr","FWD","SEN",78],["Amine Harit","MID","MAR",76],["Pierre Hojbjerg","MID","DEN",78],["Matt O'Riley","MID","DEN",78],["Angel Gomes","MID","ENG",77],["Leonardo Balerdi","DEF","ARG",77],["Ulisses Garcia","DEF","SUI",74],["Facundo Medina","DEF","ARG",76],["Pol Lirola","DEF","ESP",74],["Ruben Blanco","GK","ESP",73]],
+            [["Faris Moumbagna","FWD","CMR",76],["Valentin Rongier","MID","FRA",76],["Bilal Nadir","MID","ALG",73],["Derek Cornelius","DEF","CAN",73],["Quentin Merlin","DEF","FRA",75],["Geronimo Rulli","GK","ARG",77],["Enzo Sternal","MID","FRA",70]]
+        );
+
+        // ==========================================
+        // DYNAMIC GENERATION: HUNDREDS OF REAL PLAYERS
+        // ==========================================
+        function generateRealMarketPlayers() {
+            const realMarketPool = [
+                // Premier League
+                ["Bruno Fernandes", "MID", "POR", 87], ["Marcus Rashford", "FWD", "ENG", 83], 
+                ["Ollie Watkins", "FWD", "ENG", 84], ["Alexander Isak", "FWD", "SWE", 84],
+                ["Bruno Guimaraes", "MID", "BRA", 85], ["Lucas Paqueta", "MID", "BRA", 83],
+                ["Sven Botman", "DEF", "NED", 83], ["Anthony Gordon", "FWD", "ENG", 82],
+                ["Lisandro Martinez", "DEF", "ARG", 83], ["Rasmus Hojlund", "FWD", "DEN", 81],
+                ["Jarrod Bowen", "FWD", "ENG", 83], ["Mohammed Kudus", "MID", "GHA", 82],
+                ["Leon Bailey", "FWD", "JAM", 82], ["Douglas Luiz", "MID", "BRA", 84],
+                ["John McGinn", "MID", "SCO", 82], ["Ezri Konsa", "DEF", "ENG", 81],
+                ["Eberechi Eze", "MID", "ENG", 81], ["Michael Olise", "FWD", "FRA", 83],
+                ["Dominic Solanke", "FWD", "ENG", 82], ["Joao Palhinha", "MID", "POR", 84],
+
+                // La Liga
+                ["Frenkie de Jong", "MID", "NED", 86], ["Ronald Araujo", "DEF", "URU", 84],
+                ["Nico Williams", "FWD", "ESP", 85], ["Takefusa Kubo", "MID", "JPN", 82],
+                ["Isco", "MID", "ESP", 83], ["Mikel Oyarzabal", "FWD", "ESP", 83],
+                ["Martin Zubimendi", "MID", "ESP", 83], ["Robin Le Normand", "DEF", "ESP", 82],
+                ["Alejandro Balde", "DEF", "ESP", 81], ["Gerard Moreno", "FWD", "ESP", 83],
+                ["Inaki Williams", "FWD", "ESP", 81], ["Brais Mendez", "MID", "ESP", 81],
+                ["Borja Mayoral", "FWD", "ESP", 80], ["Artem Dovbyk", "FWD", "UKR", 82],
+                ["Savio", "FWD", "BRA", 80], ["Aleix Garcia", "MID", "ESP", 81],
+
+                // Serie A
+                ["Victor Osimhen", "FWD", "NGA", 87], ["Paulo Dybala", "FWD", "ARG", 85],
+                ["Dusan Vlahovic", "FWD", "SRB", 84], ["Federico Chiesa", "FWD", "ITA", 84],
+                ["Adrien Rabiot", "MID", "FRA", 83], ["Gleison Bremer", "DEF", "BRA", 84],
+                ["Teun Koopmeiners", "MID", "NED", 83], ["Lookman", "FWD", "NGA", 82],
+                ["Giorgio Scalvini", "DEF", "ITA", 81], ["Ederson", "MID", "BRA", 80],
+                ["Luis Alberto", "MID", "ESP", 83], ["Mattia Zaccagni", "FWD", "ITA", 82],
+                ["Albert Gudmundsson", "FWD", "ISL", 80], ["Joshua Zirkzee", "FWD", "NED", 80],
+                ["Riccardo Calafiori", "DEF", "ITA", 80], ["Hakan Calhanoglu", "MID", "TUR", 85],
+
+                // Bundesliga
+                ["Florian Wirtz", "MID", "GER", 88], ["Xavi Simons", "MID", "NED", 84],
+                ["Jeremie Frimpong", "DEF", "NED", 85], ["Lois Openda", "FWD", "BEL", 84],
+                ["Serhou Guirassy", "FWD", "GUI", 83], ["Alejandro Grimaldo", "DEF", "ESP", 85],
+                ["Granit Xhaka", "MID", "SUI", 84], ["Victor Boniface", "FWD", "NGA", 82],
+                ["Dani Olmo", "MID", "ESP", 83], ["Benjamin Sesko", "FWD", "SVN", 81],
+                ["Willian Pacho", "DEF", "ECU", 80], ["Castello Lukeba", "DEF", "FRA", 80],
+                ["Donyell Malen", "FWD", "NED", 81], ["Ian Maatsen", "DEF", "NED", 80],
+                ["Nico Schlotterbeck", "DEF", "GER", 82], ["Waldemar Anton", "DEF", "GER", 80],
+
+                // Ligue 1 & Others
+                ["Jonathan David", "FWD", "CAN", 82], ["Leny Yoro", "DEF", "FRA", 80],
+                ["Pierre-Emerick Aubameyang", "FWD", "GAB", 82], ["Vitinha", "MID", "POR", 83],
+                ["Goncalo Ramos", "FWD", "POR", 82], ["Bradley Barcola", "FWD", "FRA", 81],
+                ["Alexandr Golovin", "MID", "RUS", 81], ["Youssouf Fofana", "MID", "FRA", 81],
+                ["Takumi Minamino", "MID", "JPN", 80], ["Denis Zakaria", "MID", "SUI", 80],
+                ["Viktor Gyokeres", "FWD", "SWE", 84], ["Joao Neves", "MID", "POR", 80],
+                ["Antonio Silva", "DEF", "POR", 81], ["Diomande", "DEF", "CIV", 80],
+                ["Santiago Gimenez", "FWD", "MEX", 82], ["Joey Veerman", "MID", "NED", 81],
+
+                // Goalkeepers
+                ["Emiliano Martinez", "GK", "ARG", 85], ["Guglielmo Vicario", "GK", "ITA", 84],
+                ["Diogo Costa", "GK", "POR", 84], ["Gregor Kobel", "GK", "SUI", 86],
+                ["Lukas Hradecky", "GK", "FIN", 83], ["Alex Remiro", "GK", "ESP", 83],
+                ["Wojciech Szczesny", "GK", "POL", 85], ["Bernd Leno", "GK", "GER", 82],
+                ["Jordan Pickford", "GK", "ENG", 83], ["Yassine Bounou", "GK", "MAR", 84]
+            ];
+
+            registerRealPlayers(realMarketPool);
+
+            // EXPANDED POOL: 400+ additional real players across Premier League, La Liga,
+            // Serie A, Bundesliga, Ligue 1, Eredivisie, Primeira Liga, Saudi Pro League, MLS and more.
+            const expandedRealMarketPool = [
+                ["Declan Rice", "MID", "ENG", 86],
+                ["William Saliba", "DEF", "FRA", 85],
+                ["Kai Havertz", "FWD", "GER", 81],
+                ["Gabriel Martinelli", "FWD", "BRA", 83],
+                ["Leandro Trossard", "FWD", "BEL", 81],
+                ["Jurrien Timber", "DEF", "NED", 81],
+                ["Riccardo Calafiori", "DEF", "ITA", 82],
+                ["David Raya", "GK", "ESP", 83],
+                ["Ben White", "DEF", "ENG", 82],
+                ["Mikel Merino", "MID", "ESP", 80],
+                ["Gabriel Magalhaes", "DEF", "BRA", 84],
+                ["Erling Haaland", "FWD", "NOR", 91],
+                ["Phil Foden", "FWD", "ENG", 87],
+                ["Rodri", "MID", "ESP", 89],
+                ["Jack Grealish", "FWD", "ENG", 81],
+                ["Bernardo Silva", "MID", "POR", 87],
+                ["Ruben Dias", "DEF", "POR", 87],
+                ["John Stones", "DEF", "ENG", 83],
+                ["Kyle Walker", "DEF", "ENG", 82],
+                ["Josko Gvardiol", "DEF", "CRO", 84],
+                ["Mateo Kovacic", "MID", "CRO", 81],
+                ["Jeremy Doku", "FWD", "BEL", 83],
+                ["Savinho", "FWD", "BRA", 82],
+                ["Matheus Nunes", "MID", "POR", 80],
+                ["Ederson", "GK", "BRA", 85],
+                ["Omar Marmoush", "FWD", "EGY", 82],
+                ["Mohamed Salah", "FWD", "EGY", 90],
+                ["Virgil van Dijk", "DEF", "NED", 88],
+                ["Alisson Becker", "GK", "BRA", 88],
+                ["Trent Alexander-Arnold", "DEF", "ENG", 86],
+                ["Andy Robertson", "DEF", "SCO", 83],
+                ["Dominik Szoboszlai", "MID", "HUN", 83],
+                ["Alexis Mac Allister", "MID", "ARG", 84],
+                ["Ryan Gravenberch", "MID", "NED", 83],
+                ["Luis Diaz", "FWD", "COL", 85],
+                ["Darwin Nunez", "FWD", "URU", 81],
+                ["Cody Gakpo", "FWD", "NED", 82],
+                ["Ibrahima Konate", "DEF", "FRA", 83],
+                ["Federico Chiesa", "FWD", "ITA", 80],
+                ["Bruno Fernandes", "MID", "POR", 87],
+                ["Marcus Rashford", "FWD", "ENG", 82],
+                ["Kobbie Mainoo", "MID", "ENG", 80],
+                ["Lisandro Martinez", "DEF", "ARG", 82],
+                ["Noussair Mazraoui", "DEF", "MAR", 79],
+                ["Manuel Ugarte", "MID", "URU", 79],
+                ["Matthijs de Ligt", "DEF", "NED", 82],
+                ["Leny Yoro", "DEF", "FRA", 80],
+                ["Andre Onana", "GK", "CMR", 81],
+                ["Rasmus Hojlund", "FWD", "DEN", 80],
+                ["Alejandro Garnacho", "FWD", "ARG", 80],
+                ["Bryan Mbeumo", "FWD", "CMR", 82],
+                ["Matheus Cunha", "FWD", "BRA", 82],
+                ["Cole Palmer", "MID", "ENG", 86],
+                ["Nicolas Jackson", "FWD", "SEN", 78],
+                ["Moises Caicedo", "MID", "ECU", 84],
+                ["Enzo Fernandez", "MID", "ARG", 85],
+                ["Reece James", "DEF", "ENG", 83],
+                ["Levi Colwill", "DEF", "ENG", 80],
+                ["Marc Cucurella", "DEF", "ESP", 80],
+                ["Robert Sanchez", "GK", "ESP", 78],
+                ["Wesley Fofana", "DEF", "FRA", 78],
+                ["Christopher Nkunku", "FWD", "FRA", 81],
+                ["Pedro Neto", "FWD", "POR", 81],
+                ["Joao Felix", "FWD", "POR", 80],
+                ["Malo Gusto", "DEF", "FRA", 78],
+                ["Son Heung-min", "FWD", "KOR", 86],
+                ["James Maddison", "MID", "ENG", 83],
+                ["Dominic Solanke", "FWD", "ENG", 80],
+                ["Cristian Romero", "DEF", "ARG", 84],
+                ["Micky van de Ven", "DEF", "NED", 81],
+                ["Destiny Udogie", "DEF", "ITA", 80],
+                ["Pedro Porro", "DEF", "ESP", 81],
+                ["Guglielmo Vicario", "GK", "ITA", 82],
+                ["Yves Bissouma", "MID", "MLI", 80],
+                ["Brennan Johnson", "FWD", "WAL", 78],
+                ["Dejan Kulusevski", "MID", "SWE", 82],
+                ["Rodrigo Bentancur", "MID", "URU", 80],
+                ["Archie Gray", "MID", "ENG", 76],
+                ["Bukayo Saka", "FWD", "ENG", 87],
+                ["Martin Odegaard", "MID", "NOR", 87],
+                ["Alexander Isak", "FWD", "SWE", 85],
+                ["Anthony Gordon", "FWD", "ENG", 82],
+                ["Bruno Guimaraes", "MID", "BRA", 85],
+                ["Sandro Tonali", "MID", "ITA", 83],
+                ["Sven Botman", "DEF", "NED", 83],
+                ["Fabian Schar", "DEF", "SUI", 80],
+                ["Kieran Trippier", "DEF", "ENG", 80],
+                ["Nick Pope", "GK", "ENG", 81],
+                ["Joelinton", "MID", "BRA", 80],
+                ["Harvey Barnes", "FWD", "ENG", 79],
+                ["Lewis Hall", "DEF", "ENG", 77],
+                ["Ollie Watkins", "FWD", "ENG", 84],
+                ["Morgan Rogers", "MID", "ENG", 78],
+                ["Youri Tielemans", "MID", "BEL", 80],
+                ["Boubacar Kamara", "MID", "FRA", 81],
+                ["Ezri Konsa", "DEF", "ENG", 81],
+                ["Pau Torres", "DEF", "ESP", 81],
+                ["Matty Cash", "DEF", "POL", 78],
+                ["Emiliano Martinez", "GK", "ARG", 85],
+                ["Amadou Onana", "MID", "BEL", 80],
+                ["Jarrod Bowen", "FWD", "ENG", 83],
+                ["Mohammed Kudus", "MID", "GHA", 82],
+                ["Lucas Paqueta", "MID", "BRA", 83],
+                ["Niclas Fullkrug", "FWD", "GER", 78],
+                ["Max Kilman", "DEF", "ENG", 78],
+                ["Jean-Clair Todibo", "DEF", "FRA", 79],
+                ["Alphonse Areola", "GK", "FRA", 78],
+                ["Eberechi Eze", "MID", "ENG", 82],
+                ["Jean-Philippe Mateta", "FWD", "FRA", 78],
+                ["Marc Guehi", "DEF", "ENG", 80],
+                ["Adam Wharton", "MID", "ENG", 78],
+                ["Dean Henderson", "GK", "ENG", 79],
+                ["Daniel Munoz", "DEF", "COL", 79],
+                ["Michael Olise", "FWD", "FRA", 83],
+                ["Wilfried Gnonto", "FWD", "ITA", 77],
+                ["Georginio Rutter", "FWD", "FRA", 79],
+                ["Illan Meslier", "GK", "FRA", 76],
+                ["Chris Wood", "FWD", "NZL", 78],
+                ["Sander Berge", "MID", "NOR", 78],
+                ["Jack Harrison", "MID", "ENG", 77],
+                ["Josh Sargent", "FWD", "USA", 77],
+                ["Ashley Young", "DEF", "ENG", 76],
+                ["Marcus Tavernier", "MID", "ENG", 77],
+                ["Justin Kluivert", "FWD", "NED", 78],
+                ["Adam Smith", "DEF", "ENG", 75],
+                ["Neto", "GK", "BRA", 76],
+                ["James Ward-Prowse", "MID", "ENG", 78],
+                ["Joachim Andersen", "DEF", "DEN", 80],
+                ["Tosin Adarabioyo", "DEF", "ENG", 78],
+                ["Ryan Christie", "MID", "SCO", 76],
+                ["Kaoru Mitoma", "FWD", "JPN", 81],
+                ["Danny Welbeck", "FWD", "ENG", 77],
+                ["Lewis Dunk", "DEF", "ENG", 78],
+                ["Jan Paul van Hecke", "DEF", "NED", 76],
+                ["Bart Verbruggen", "GK", "NED", 77],
+                ["Yankuba Minteh", "FWD", "GAM", 77],
+                ["Callum Wilson", "FWD", "ENG", 78],
+                ["Anthony Elanga", "FWD", "SWE", 78],
+                ["Jacob Murphy", "FWD", "ENG", 76],
+                ["Kylian Mbappe", "FWD", "FRA", 91],
+                ["Jude Bellingham", "MID", "ENG", 89],
+                ["Vinicius Junior", "FWD", "BRA", 90],
+                ["Rodrygo", "FWD", "BRA", 85],
+                ["Federico Valverde", "MID", "URU", 87],
+                ["Aurelien Tchouameni", "MID", "FRA", 84],
+                ["Eduardo Camavinga", "MID", "FRA", 84],
+                ["Antonio Rudiger", "DEF", "GER", 85],
+                ["Eder Militao", "DEF", "BRA", 83],
+                ["Dani Carvajal", "DEF", "ESP", 82],
+                ["Ferland Mendy", "DEF", "FRA", 81],
+                ["Thibaut Courtois", "GK", "BEL", 89],
+                ["Endrick", "FWD", "BRA", 78],
+                ["Arda Guler", "MID", "TUR", 79],
+                ["Brahim Diaz", "MID", "ESP", 80],
+                ["Dean Huijsen", "DEF", "ESP", 79],
+                ["Fran Garcia", "DEF", "ESP", 78],
+                ["Andriy Lunin", "GK", "UKR", 79],
+                ["Lamine Yamal", "FWD", "ESP", 88],
+                ["Robert Lewandowski", "FWD", "POL", 87],
+                ["Raphinha", "FWD", "BRA", 86],
+                ["Pedri", "MID", "ESP", 87],
+                ["Frenkie de Jong", "MID", "NED", 85],
+                ["Pau Cubarsi", "DEF", "ESP", 81],
+                ["Jules Kounde", "DEF", "FRA", 84],
+                ["Alejandro Balde", "DEF", "ESP", 81],
+                ["Marc-Andre ter Stegen", "GK", "GER", 86],
+                ["Ferran Torres", "FWD", "ESP", 79],
+                ["Dani Olmo", "MID", "ESP", 84],
+                ["Marc Casado", "MID", "ESP", 76],
+                ["Ronald Araujo", "DEF", "URU", 84],
+                ["Wojciech Szczesny", "GK", "POL", 81],
+                ["Gavi", "MID", "ESP", 83],
+                ["Fermin Lopez", "MID", "ESP", 80],
+                ["Julian Alvarez", "FWD", "ARG", 86],
+                ["Antoine Griezmann", "FWD", "FRA", 86],
+                ["Alexander Sorloth", "FWD", "NOR", 81],
+                ["Koke", "MID", "ESP", 80],
+                ["Rodrigo De Paul", "MID", "ARG", 81],
+                ["Pablo Barrios", "MID", "ESP", 79],
+                ["Jose Maria Gimenez", "DEF", "URU", 82],
+                ["Robin Le Normand", "DEF", "ESP", 82],
+                ["Nahuel Molina", "DEF", "ARG", 78],
+                ["Jan Oblak", "GK", "SVN", 87],
+                ["Marcos Llorente", "MID", "ESP", 80],
+                ["Giuliano Simeone", "FWD", "ARG", 76],
+                ["Nico Williams", "FWD", "ESP", 85],
+                ["Oihan Sancet", "MID", "ESP", 81],
+                ["Mikel Oyarzabal", "FWD", "ESP", 83],
+                ["Martin Zubimendi", "MID", "ESP", 83],
+                ["Takefusa Kubo", "MID", "JPN", 81],
+                ["Ander Barrenetxea", "FWD", "ESP", 77],
+                ["Aritz Elustondo", "DEF", "ESP", 75],
+                ["Alex Remiro", "GK", "ESP", 79],
+                ["Isco", "MID", "ESP", 80],
+                ["Brais Mendez", "MID", "ESP", 79],
+                ["Borja Iglesias", "FWD", "ESP", 78],
+                ["Ez Abde", "FWD", "MAR", 78],
+                ["Alvaro Morata", "FWD", "ESP", 80],
+                ["Aleix Garcia", "MID", "ESP", 80],
+                ["Yarek Gasiorowski", "DEF", "ESP", 73],
+                ["Artem Dovbyk", "FWD", "UKR", 80],
+                ["Giorgi Mamardashvili", "GK", "GEO", 80],
+                ["Ayoze Perez", "FWD", "ESP", 78],
+                ["Sergio Camello", "FWD", "ESP", 76],
+                ["Kirian Rodriguez", "MID", "ESP", 74],
+                ["Iago Aspas", "FWD", "ESP", 81],
+                ["Damian Rodriguez", "MID", "ESP", 73],
+                ["Antonio Blanco", "MID", "ESP", 74],
+                ["Sergi Darder", "MID", "ESP", 76],
+                ["Vedat Muriqi", "FWD", "KVX", 77],
+                ["Victor Osimhen", "FWD", "NGA", 86],
+                ["Marcus Thuram", "FWD", "FRA", 84],
+                ["Lautaro Martinez", "FWD", "ARG", 87],
+                ["Hakan Calhanoglu", "MID", "TUR", 85],
+                ["Nicolo Barella", "MID", "ITA", 85],
+                ["Alessandro Bastoni", "DEF", "ITA", 85],
+                ["Federico Dimarco", "DEF", "ITA", 83],
+                ["Denzel Dumfries", "DEF", "NED", 82],
+                ["Yann Sommer", "GK", "SUI", 83],
+                ["Benjamin Pavard", "DEF", "FRA", 80],
+                ["Piotr Zielinski", "MID", "POL", 80],
+                ["Davide Frattesi", "MID", "ITA", 80],
+                ["Kristjan Asllani", "MID", "ALB", 76],
+                ["Josep Martinez", "GK", "ESP", 77],
+                ["Rafael Leao", "FWD", "POR", 86],
+                ["Christian Pulisic", "FWD", "USA", 83],
+                ["Tijjani Reijnders", "MID", "NED", 84],
+                ["Theo Hernandez", "DEF", "FRA", 84],
+                ["Mike Maignan", "GK", "FRA", 86],
+                ["Fikayo Tomori", "DEF", "ENG", 80],
+                ["Malick Thiaw", "DEF", "GER", 79],
+                ["Yacine Adli", "MID", "FRA", 76],
+                ["Youssouf Fofana", "MID", "FRA", 81],
+                ["Samuel Chukwueze", "FWD", "NGA", 78],
+                ["Strahinja Pavlovic", "DEF", "SRB", 78],
+                ["Dusan Vlahovic", "FWD", "SRB", 84],
+                ["Manuel Locatelli", "MID", "ITA", 81],
+                ["Andrea Cambiaso", "DEF", "ITA", 79],
+                ["Gleison Bremer", "DEF", "BRA", 84],
+                ["Michele Di Gregorio", "GK", "ITA", 78],
+                ["Teun Koopmeiners", "MID", "NED", 83],
+                ["Kenan Yildiz", "MID", "TUR", 79],
+                ["Weston McKennie", "MID", "USA", 78],
+                ["Khephren Thuram", "MID", "FRA", 80],
+                ["Ademola Lookman", "FWD", "NGA", 84],
+                ["Charles De Ketelaere", "FWD", "BEL", 78],
+                ["Mario Pasalic", "MID", "CRO", 79],
+                ["Giorgio Scalvini", "DEF", "ITA", 81],
+                ["Marten de Roon", "MID", "NED", 76],
+                ["Berat Djimsiti", "DEF", "ALB", 76],
+                ["Mateo Retegui", "FWD", "ITA", 79],
+                ["Paulo Dybala", "FWD", "ARG", 84],
+                ["Taty Castellanos", "FWD", "ARG", 79],
+                ["Mattia Zaccagni", "FWD", "ITA", 81],
+                ["Luis Alberto", "MID", "ESP", 82],
+                ["Nicolo Rovella", "MID", "ITA", 77],
+                ["Ivan Provedel", "GK", "ITA", 76],
+                ["Alessio Romagnoli", "DEF", "ITA", 78],
+                ["Manuel Lanzini", "MID", "ARG", 76],
+                ["Riccardo Orsolini", "FWD", "ITA", 79],
+                ["Joshua Zirkzee", "FWD", "NED", 79],
+                ["Lewis Ferguson", "MID", "SCO", 77],
+                ["Kim Min-jae", "DEF", "KOR", 84],
+                ["Alex Meret", "GK", "ITA", 80],
+                ["Scott McTominay", "MID", "SCO", 81],
+                ["Frank Anguissa", "MID", "CMR", 80],
+                ["Stanislav Lobotka", "MID", "SVK", 81],
+                ["Giovanni Di Lorenzo", "DEF", "ITA", 81],
+                ["Amir Rrahmani", "DEF", "KVX", 80],
+                ["Alessandro Buongiorno", "DEF", "ITA", 80],
+                ["Romelu Lukaku", "FWD", "BEL", 83],
+                ["Khvicha Kvaratskhelia", "FWD", "GEO", 87],
+                ["Harry Kane", "FWD", "ENG", 89],
+                ["Jamal Musiala", "MID", "GER", 87],
+                ["Joshua Kimmich", "MID", "GER", 87],
+                ["Leon Goretzka", "MID", "GER", 82],
+                ["Alphonso Davies", "DEF", "CAN", 83],
+                ["Dayot Upamecano", "DEF", "FRA", 83],
+                ["Min-jae Kim", "DEF", "KOR", 84],
+                ["Manuel Neuer", "GK", "GER", 85],
+                ["Leroy Sane", "FWD", "GER", 83],
+                ["Serge Gnabry", "FWD", "GER", 81],
+                ["Konrad Laimer", "MID", "AUT", 79],
+                ["Raphael Guerreiro", "DEF", "POR", 80],
+                ["Aleksandar Pavlovic", "MID", "GER", 80],
+                ["Florian Wirtz", "MID", "GER", 88],
+                ["Jeremie Frimpong", "DEF", "NED", 85],
+                ["Alejandro Grimaldo", "DEF", "ESP", 85],
+                ["Granit Xhaka", "MID", "SUI", 84],
+                ["Victor Boniface", "FWD", "NGA", 82],
+                ["Patrik Schick", "FWD", "CZE", 81],
+                ["Jonathan Tah", "DEF", "GER", 82],
+                ["Edmond Tapsoba", "DEF", "BFA", 80],
+                ["Lukas Hradecky", "GK", "FIN", 83],
+                ["Nathan Tella", "FWD", "ENG", 76],
+                ["Piero Hincapie", "DEF", "ECU", 79],
+                ["Serhou Guirassy", "FWD", "GUI", 83],
+                ["Karim Adeyemi", "FWD", "GER", 80],
+                ["Julian Brandt", "MID", "GER", 80],
+                ["Emre Can", "MID", "GER", 80],
+                ["Pascal Gross", "MID", "GER", 79],
+                ["Nico Schlotterbeck", "DEF", "GER", 82],
+                ["Niklas Sule", "DEF", "GER", 80],
+                ["Waldemar Anton", "DEF", "GER", 80],
+                ["Gregor Kobel", "GK", "SUI", 86],
+                ["Ramy Bensebaini", "DEF", "ALG", 79],
+                ["Felix Nmecha", "MID", "GER", 77],
+                ["Maximilian Beier", "FWD", "GER", 78],
+                ["Xavi Simons", "MID", "NED", 85],
+                ["Benjamin Sesko", "FWD", "SVN", 81],
+                ["Lois Openda", "FWD", "BEL", 84],
+                ["Willi Orban", "DEF", "HUN", 78],
+                ["David Raum", "DEF", "GER", 79],
+                ["Peter Gulacsi", "GK", "HUN", 79],
+                ["Xaver Schlager", "MID", "AUT", 78],
+                ["Castello Lukeba", "DEF", "FRA", 80],
+                ["Randal Kolo Muani", "FWD", "FRA", 81],
+                ["Hugo Ekitike", "FWD", "FRA", 80],
+                ["Robin Koch", "DEF", "GER", 78],
+                ["Ansgar Knauff", "FWD", "GER", 75],
+                ["Grischa Promel", "MID", "GER", 74],
+                ["Deniz Undav", "FWD", "GER", 80],
+                ["Chris Fuhrich", "FWD", "GER", 76],
+                ["Angelo Stiller", "MID", "GER", 79],
+                ["Jamie Leweling", "FWD", "GER", 76],
+                ["Ridle Baku", "DEF", "GER", 76],
+                ["Jonas Wind", "FWD", "DEN", 78],
+                ["Kevin Behrens", "FWD", "GER", 76],
+                ["Ousmane Dembele", "FWD", "FRA", 88],
+                ["Bradley Barcola", "FWD", "FRA", 83],
+                ["Desire Doue", "FWD", "FRA", 82],
+                ["Vitinha", "MID", "POR", 85],
+                ["Joao Neves", "MID", "POR", 82],
+                ["Fabian Ruiz", "MID", "ESP", 82],
+                ["Warren Zaire-Emery", "MID", "FRA", 81],
+                ["Achraf Hakimi", "DEF", "MAR", 86],
+                ["Marquinhos", "DEF", "BRA", 85],
+                ["Willian Pacho", "DEF", "ECU", 81],
+                ["Nuno Mendes", "DEF", "POR", 83],
+                ["Gianluigi Donnarumma", "GK", "ITA", 88],
+                ["Goncalo Ramos", "FWD", "POR", 81],
+                ["Lee Kang-in", "MID", "KOR", 79],
+                ["Jonathan David", "FWD", "CAN", 82],
+                ["Alexandre Golovin", "MID", "RUS", 80],
+                ["Wissam Ben Yedder", "FWD", "FRA", 78],
+                ["Takumi Minamino", "MID", "JPN", 78],
+                ["Denis Zakaria", "MID", "SUI", 78],
+                ["Amine Gouiri", "FWD", "ALG", 79],
+                ["Terem Moffi", "FWD", "NGA", 79],
+                ["Mason Greenwood", "FWD", "ENG", 81],
+                ["Neal Maupay", "FWD", "FRA", 76],
+                ["Ismael Bennacer", "MID", "ALG", 78],
+                ["Adrien Thomasson", "MID", "FRA", 75],
+                ["Josuha Guilavogui", "MID", "FRA", 73],
+                ["Folarin Balogun", "FWD", "USA", 78],
+                ["Lucas Chevalier", "GK", "FRA", 79],
+                ["Bafode Diakite", "DEF", "FRA", 76],
+                ["Edon Zhegrova", "FWD", "KVX", 78],
+                ["Loum Tchaouna", "FWD", "FRA", 75],
+                ["Georges Mikautadze", "FWD", "GEO", 79],
+                ["Bilal El Khannouss", "MID", "MAR", 76],
+                ["Malick Fofana", "FWD", "BEL", 77],
+                ["Corentin Tolisso", "MID", "FRA", 78],
+                ["Rayan Cherki", "MID", "FRA", 81],
+                ["Alan Virginius", "FWD", "FRA", 73],
+                ["Wout Weghorst", "FWD", "NED", 76],
+                ["Brian Brobbey", "FWD", "NED", 78],
+                ["Kenneth Taylor", "MID", "NED", 76],
+                ["Jordan Henderson", "MID", "ENG", 76],
+                ["Jayden Oosterwolde", "DEF", "NED", 76],
+                ["Devyne Rensch", "DEF", "NED", 75],
+                ["Remko Pasveer", "GK", "NED", 73],
+                ["Viktor Gyokeres", "FWD", "SWE", 85],
+                ["Pedro Goncalves", "MID", "POR", 81],
+                ["Antonio Silva", "DEF", "POR", 81],
+                ["Diogo Costa", "GK", "POR", 84],
+                ["Ricardo Horta", "FWD", "POR", 80],
+                ["Alan Varela", "MID", "ARG", 78],
+                ["Zaidu Sanusi", "DEF", "NGA", 75],
+                ["Cristiano Ronaldo", "FWD", "POR", 85],
+                ["Karim Benzema", "FWD", "FRA", 81],
+                ["Sadio Mane", "FWD", "SEN", 81],
+                ["N'Golo Kante", "MID", "FRA", 81],
+                ["Riyad Mahrez", "FWD", "ALG", 80],
+                ["Aleksandar Mitrovic", "FWD", "SRB", 80],
+                ["Roberto Firmino", "FWD", "BRA", 78],
+                ["Kalidou Koulibaly", "DEF", "SEN", 79],
+                ["Marcelo Brozovic", "MID", "CRO", 79],
+                ["Ruben Neves", "MID", "POR", 81],
+                ["Fabinho", "MID", "BRA", 78],
+                ["Lionel Messi", "FWD", "ARG", 89],
+                ["Luis Suarez", "FWD", "URU", 80],
+                ["Sergio Busquets", "MID", "ESP", 78],
+                ["Jordi Alba", "DEF", "ESP", 77],
+                ["Hugo Lloris", "GK", "FRA", 78],
+                ["Denis Bouanga", "FWD", "GAB", 79],
+                ["Christian Benteke", "FWD", "BEL", 77],
+                ["Endrick Felipe", "FWD", "BRA", 76],
+                ["Estevao Willian", "FWD", "BRA", 79],
+                ["Gabriel Barbosa", "FWD", "BRA", 78],
+                ["Hulk", "FWD", "BRA", 79],
+                ["Pablo Maia", "MID", "BRA", 76],
+                ["Enzo Diaz", "DEF", "ARG", 74],
+                ["Nicolas Otamendi", "DEF", "ARG", 78],
+                ["Edin Dzeko", "FWD", "BIH", 78],
+                ["Dries Mertens", "FWD", "BEL", 76],
+                ["Mauro Icardi", "FWD", "ARG", 80],
+                ["Eden Hazard", "FWD", "BEL", 75],
+                ["Thibault Vlietinck", "DEF", "BEL", 70],
+                ["Fabio Carvalho", "MID", "POR", 76],
+                ["Cameron Archer", "FWD", "ENG", 74],
+                ["Taiwo Awoniyi", "FWD", "NGA", 78],
+                ["Divock Origi", "FWD", "BEL", 74],
+                ["Jesse Lingard", "MID", "ENG", 73],
+                ["Conor Gallagher", "MID", "ENG", 79],
+                ["Ben Chilwell", "DEF", "ENG", 78],
+                ["Raheem Sterling", "FWD", "ENG", 78],
+                ["Trevoh Chalobah", "DEF", "ENG", 77],
+                ["Axel Disasi", "DEF", "FRA", 78],
+                ["Renato Veiga", "DEF", "POR", 76],
+                ["Filip Jorgensen", "GK", "DEN", 76],
+                ["Mykhailo Mudryk", "FWD", "UKR", 78],
+                ["Kiernan Dewsbury-Hall", "MID", "ENG", 77],
+                ["Romeo Lavia", "MID", "BEL", 77],
+                ["Malang Sarr", "DEF", "FRA", 73],
+                ["Marc Guiu", "FWD", "ESP", 74]
+            ];
+
+            registerRealPlayers(expandedRealMarketPool);
+        }
+
+        // Initialize Real Market Players
+        generateRealMarketPlayers();
+
+        const clubsData = [
+            { id: 'rma', name: 'Real Madrid', budget: 60.0, mult: 1.2, conf: 85, desc: 'Galacticos setup with world-class depth.', xi: [1, 3, 201, 11, 15, 202, 205, 27, 203, 204, 32], bench: benchIds.rma , rating: 88 },
+            { id: 'mci', name: 'Man City', budget: 65.0, mult: 1.2, conf: 85, desc: 'Limitless potential and elite midfielders.', xi: [2, 206, 207, 12, 13, 208, 29, 22, 115, 209, 33], bench: benchIds.mci , rating: 88 },
+            { id: 'liv', name: 'Liverpool', budget: 45.0, mult: 1.0, conf: 80, desc: 'High press intensity and fierce attack.', xi: [4, 102, 210, 18, 107, 213, 211, 21, 212, 24, 31], bench: benchIds.liv , rating: 86 },
+            { id: 'ars', name: 'Arsenal', budget: 50.0, mult: 1.0, conf: 80, desc: 'Young, highly skilled technical lineup.', xi: [6, 214, 215, 14, 16, 219, 220, 217, 23, 216, 218], bench: benchIds.ars , rating: 85 },
+            { id: 'bay', name: 'Bayern Munich', budget: 50.0, mult: 1.1, conf: 80, desc: 'German powerhouses with high expectations.', xi: [5, 228, 229, 221, 223, 224, 26, 226, 225, 248, 227], bench: benchIds.bay , rating: 86 },
+            { id: 'int', name: 'Inter Milan', budget: 35.0, mult: 0.9, conf: 80, desc: 'Solid defensive unit with clinical strike force.', xi: [230, 231, 105, 17, 232, 233, 234, 30, 236, 235, 36], bench: benchIds.int , rating: 84 },
+            { id: 'psgc', name: 'Paris Saint-Germain', budget: 55.0, mult: 1.15, conf: 82, desc: 'Blistering pace up front, French core, deep bench.', xi: psgSquad.xi, bench: psgSquad.bench , rating: 85 },
+            { id: 'bar', name: 'Barcelona', budget: 40.0, mult: 1.1, conf: 78, desc: 'Homegrown talent factory built around La Masia kids.', xi: barSquad.xi, bench: barSquad.bench , rating: 84 },
+            { id: 'che', name: 'Chelsea', budget: 48.0, mult: 1.05, conf: 76, desc: 'Young, expensively assembled squad still finding its identity.', xi: cheSquad.xi, bench: cheSquad.bench , rating: 82 },
+            { id: 'tot', name: 'Tottenham', budget: 3888.0, mult: 0.95, conf: 74, desc: 'Attacking flair, historically shaky under pressure.', xi: totSquad.xi, bench: totSquad.bench , rating: 80 },
+            { id: 'dor', name: 'B. Dortmund', budget: 30.0, mult: 0.9, conf: 78, desc: 'Yellow Wall intensity and a knack for developing stars.', xi: dorSquad.xi, bench: dorSquad.bench , rating: 81 },
+            { id: 'mil', name: 'AC Milan', budget: 32.0, mult: 0.9, conf: 76, desc: 'Storied Rossoneri rebuild with pace on the wings.', xi: milSquad.xi, bench: milSquad.bench , rating: 81 },
+            { id: 'atm', name: 'Atletico Madrid', budget: 36.0, mult: 0.95, conf: 79, desc: 'Disciplined, physical, built to grind out results.', xi: atmSquad.xi, bench: atmSquad.bench , rating: 82 },
+            { id: 'nap', name: 'Napoli', budget: 34.0, mult: 0.95, conf: 78, desc: 'Reigning Serie A grit with a Georgian talisman.', xi: napSquad.xi, bench: napSquad.bench , rating: 82 },
+            { id: 'manu', name: 'Man United', budget: 42.0, mult: 1.0, conf: 72, desc: 'Storied giant rebuilding its identity under pressure.', xi: manuSquad.xi, bench: manuSquad.bench , rating: 79 },
+            { id: 'new', name: 'Newcastle', budget: 33.0, mult: 0.9, conf: 78, desc: 'Big-spending project with a Swedish focal point up top.', xi: newSquad.xi, bench: newSquad.bench , rating: 81 },
+            { id: 'lez', name: 'RB Leipzig', budget: 28.0, mult: 0.85, conf: 77, desc: 'Data-driven talent pipeline, quick and direct in transition.', xi: lezSquad.xi, bench: lezSquad.bench , rating: 80 },
+            { id: 'ata', name: 'Atalanta', budget: 26.0, mult: 0.85, conf: 79, desc: 'Relentless pressing underdogs who punch above their weight.', xi: ataSquad.xi, bench: ataSquad.bench , rating: 81 },
+            { id: 'juv', name: 'Juventus', budget: 34.0, mult: 0.95, conf: 75, desc: 'Old Lady rebuild leaning on a stout back line.', xi: juvSquad.xi, bench: juvSquad.bench , rating: 80 },
+            { id: 'ben', name: 'Benfica', budget: 24.0, mult: 0.8, conf: 76, desc: 'Portuguese powerhouse and a factory for future superstars.', xi: benSquad.xi, bench: benSquad.bench , rating: 78 },
+            { id: 'spo', name: 'Sporting CP', budget: 22.0, mult: 0.8, conf: 80, desc: 'Reigning Portuguese champions, sharp and well-organized.', xi: spoSquad.xi, bench: spoSquad.bench , rating: 79 }
+        ];
+
+        // Remaining transfer budgets after the summer window. Values are in millions.
+        const realisticClubFinances = {
+            rma: { budget: 180.0, summerSpend: 165.0 }, mci: { budget: 150.0, summerSpend: 210.0 },
+            liv: { budget: 140.0, summerSpend: 175.0 }, ars: { budget: 115.0, summerSpend: 190.0 },
+            bay: { budget: 125.0, summerSpend: 145.0 }, int: { budget: 65.0, summerSpend: 85.0 },
+            psgc: { budget: 190.0, summerSpend: 230.0 }, bar: { budget: 85.0, summerSpend: 120.0 },
+            che: { budget: 220.0, summerSpend: 280.0 }, tot: { budget: 1000.0, summerSpend: 439.5 },
+            dor: { budget: 90.0, summerSpend: 115.0 }, mil: { budget: 75.0, summerSpend: 105.0 },
+            atm: { budget: 85.0, summerSpend: 95.0 }, nap: { budget: 80.0, summerSpend: 130.0 },
+            manu: { budget: 200.0, summerSpend: 260.0 }, new: { budget: 145.0, summerSpend: 180.0 },
+            lez: { budget: 65.0, summerSpend: 75.0 }, ata: { budget: 55.0, summerSpend: 60.0 },
+            juv: { budget: 95.0, summerSpend: 125.0 }, ben: { budget: 50.0, summerSpend: 55.0 },
+            spo: { budget: 45.0, summerSpend: 50.0 }
+        };
+
+        clubsData.forEach(club => {
+            const finances = realisticClubFinances[club.id];
+            club.budget = finances.budget;
+            club.summerSpend = finances.summerSpend;
+        });
+
+        // Confirmed 2026 summer-window moves reflected in the current game data.
+        // Transfers can move an existing player between clubs and optionally update
+        // the starting XI slot used by the new club.
+        const summerWindowTransfers = [
+            { player: "Cristian Romero", fromClubId: "tot", clubId: "atm", startingSlot: 6, pos: "DEF", nat: "ARG", rating: 83, fee: 0 },
+            { player: "Djed Spence", fromClubId: "tot", clubId: "int", pos: "DEF", nat: "ENG", rating: 76, fee: 0 },
+            { player: "Guglielmo Vicario", fromClubId: "tot", clubId: "juv", startingSlot: 10, pos: "GK", nat: "ITA", rating: 81, fee: 0 },
+            { player: "Sandro Tonali", fromClubId: "new", clubId: "tot", startingSlot: 4, pos: "MID", nat: "ITA", rating: 83, fee: 92.5 },
+            { player: "Mateus Fernandes", clubId: "tot", startingSlot: 5, pos: "MID", nat: "POR", rating: 82, fee: 85 },
+            { player: "Savinho", fromClubId: "mci", clubId: "tot", pos: "FWD", nat: "BRA", rating: 81, fee: 75 },
+            { player: "Mykhailo Mudryk", fromClubId: "che", clubId: "tot", startingSlot: 2, pos: "FWD", nat: "UKR", rating: 78, fee: 75, feeType: "loan option" },
+            { player: "Omar Marmoush", fromClubId: "mci", clubId: "tot", startingSlot: 1, pos: "FWD", nat: "EGY", rating: 82, fee: 50, feeType: "loan obligation" },
+            { player: "Jan Paul van Hecke", clubId: "tot", startingSlot: 6, pos: "DEF", nat: "NED", rating: 80, fee: 52 },
+            { player: "Tosin Adarabioyo", fromClubId: "che", clubId: "tot", startingSlot: 7, pos: "DEF", nat: "ENG", rating: 78, fee: 10 },
+            { player: "Andy Robertson", fromClubId: "liv", clubId: "tot", startingSlot: 8, pos: "DEF", nat: "SCO", rating: 83, fee: 0 },
+            { player: "Martin Dubravka", fromClubId: "new", clubId: "tot", startingSlot: 10, pos: "GK", nat: "SVK", rating: 76, fee: 0 },
+            { player: "Martin Zubimendi", clubId: "ars", startingSlot: 5, pos: "MID", nat: "ESP", rating: 84, fee: 0 }
+        ];
+
+        function applySummerWindowTransfers() {
+            summerWindowTransfers.forEach(transfer => {
+                const club = clubsData.find(c => c.id === transfer.clubId);
+                if (!club) return;
+
+                const sourceClub = transfer.fromClubId ? clubsData.find(c => c.id === transfer.fromClubId) : null;
+                if (sourceClub) {
+                    sourceClub.xi = sourceClub.xi.map(id => allPlayers.find(p => p.id === id)?.name === transfer.player ? null : id);
+                    sourceClub.bench = sourceClub.bench.filter(id => allPlayers.find(p => p.id === id)?.name !== transfer.player);
+                }
+
+                let player = allPlayers.find(p => p.name === transfer.player);
+                if (!player) {
+                    const id = nextRealId++;
+                    player = makeRealPlayer(id, transfer.player, transfer.pos, transfer.nat, transfer.rating);
+                    allPlayers.push(player);
+                }
+                if (transfer.fee > 0) player.price = transfer.fee;
+
+                club.xi = club.xi.filter(id => id !== player.id);
+                club.bench = club.bench.filter(id => id !== player.id);
+                if (transfer.startingSlot !== undefined) {
+                    const displacedId = club.xi[transfer.startingSlot];
+                    club.xi[transfer.startingSlot] = player.id;
+                    if (displacedId && displacedId !== player.id) club.bench.unshift(displacedId);
+                } else {
+                    club.bench.push(player.id);
+                }
+                club.bench = club.bench.slice(0, 7);
+            });
+        }
+
+        applySummerWindowTransfers();
+
+        // Hidden Spurs boost: apply it only to players cloned into a Tottenham career.
+        function prepareCareerPlayer(player, clubId) {
+            const careerPlayer = { ...player };
+            if (clubId !== 'tot') return careerPlayer;
+
+            careerPlayer.ovr = Math.max(88, careerPlayer.ovr);
+            careerPlayer.pac = Math.max(88, careerPlayer.pac);
+            careerPlayer.sho = Math.max(88, careerPlayer.sho);
+            careerPlayer.pas = Math.max(88, careerPlayer.pas);
+            careerPlayer.dri = Math.max(88, careerPlayer.dri);
+            careerPlayer.def = Math.max(88, careerPlayer.def);
+            careerPlayer.phy = Math.max(88, careerPlayer.phy);
+            return careerPlayer;
+        }
+
+        const formations = {
+            "4-3-3": { fwd: 3, mid: 3, def: 4 },
+            "4-4-2": { fwd: 2, mid: 4, def: 4 },
+            "4-2-3-1": { fwd: 1, mid: 5, def: 4 },
+            "3-5-2": { fwd: 2, mid: 5, def: 3 }
+        };
+
+        // STATE
+        let state = {
+            clubId: "", managerName: "", secretBudget: 0, clubName: "", boardMultiplier: 1.0, budget: 0,
+            slots: new Array(25).fill(null),
+            formation: "4-3-3",
+            facilities: { stadium: 1, training: 1, medical: 1 },
+            marketFilter: 'ALL', week: 1, tactic: 'balanced', selectedSlot: null, matchInProgress: false,
+            boardConfidence: 85, liveMentality: 'balanced',
+            news: [], unreadNews: 0,
+
+            // LEAGUE SYSTEM: built dynamically from every club in clubsData (real 20+ team league)
+            league: [],
+            schedule: [],
+            totalWeeks: 0
+        };
+
+        // Generates a single round-robin schedule (circle method) for an even number of teams.
+        // Returns an array of "weeks", each week an array of [idxA, idxB] pairs (indices into the teams array).
+        function generateRoundRobin(teamCount) {
+            let ids = Array.from({length: teamCount}, (_, i) => i);
+            if (teamCount % 2 !== 0) ids.push(-1); // bye slot for odd counts
+            const n = ids.length;
+            const rounds = [];
+            for (let r = 0; r < n - 1; r++) {
+                const pairs = [];
+                for (let i = 0; i < n / 2; i++) {
+                    const a = ids[i], b = ids[n - 1 - i];
+                    if (a !== -1 && b !== -1) pairs.push([a, b]);
+                }
+                rounds.push(pairs);
+                // rotate all but the first element
+                ids = [ids[0], ids[n - 1], ...ids.slice(1, n - 1)];
+            }
+            return rounds;
+        }
+
+        let manager3D = null;
+
+        function initManager3D() {
+            const canvas = document.getElementById('manager-canvas');
+            if (!canvas || typeof THREE === 'undefined' || manager3D) return;
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+            camera.position.set(0, 1.05, 5.3);
+            camera.lookAt(0, 0.82, 0);
+            const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.1;
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            const controls = { update() {} };
+            const group = new THREE.Group();
+            scene.add(group);
+            scene.add(new THREE.HemisphereLight(0xdbeafe, 0x111827, 2.2));
+            const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+            keyLight.position.set(3, 4, 4);
+            keyLight.castShadow = true;
+            scene.add(keyLight);
+            const floor = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 0.08, 32), new THREE.MeshStandardMaterial({ color: 0x00a98f, roughness: 0.8 }));
+            floor.position.y = 0.04;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            manager3D = { scene, camera, renderer, controls, group, floor, materials: {} };
+            updateManager3D();
+
+            let dragging = false;
+            let lastX = 0;
+            canvas.addEventListener('pointerdown', event => {
+                dragging = true;
+                lastX = event.clientX;
+                canvas.setPointerCapture(event.pointerId);
+            });
+            canvas.addEventListener('pointermove', event => {
+                if (!dragging) return;
+                manager3D.group.rotation.y += (event.clientX - lastX) * 0.01;
+                lastX = event.clientX;
+            });
+            canvas.addEventListener('pointerup', () => { dragging = false; });
+
+            const resize = () => {
+                const width = canvas.clientWidth || 320;
+                const height = canvas.clientHeight || 260;
+                renderer.setSize(width, height, false);
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+            };
+            resize();
+            window.addEventListener('resize', resize);
+            const animate = () => {
+                if (!manager3D) return;
+                controls.update();
+                renderer.render(scene, camera);
+                requestAnimationFrame(animate);
+            };
+            animate();
+        }
+
+        function updateManager3D() {
+            if (!manager3D) return;
+            const skin = document.getElementById('manager-skin').value;
+            const hairColor = document.getElementById('manager-hair-color').value;
+            const suit = document.getElementById('manager-suit').value;
+            const hairStyle = document.getElementById('manager-hair').value;
+            const build = Number(document.getElementById('manager-build').value);
+            const group = manager3D.group;
+            while (group.children.length) group.remove(group.children[0]);
+
+            const material = (color, roughness = 0.7) => new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.02 });
+            const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.38 * build, 0.5 * build, 0.92, 16), material(suit));
+            torso.position.y = 0.93;
+            group.add(torso);
+            const waist = new THREE.Mesh(new THREE.CylinderGeometry(0.34 * build, 0.39 * build, 0.22, 16), material(suit));
+            waist.position.y = 0.43;
+            group.add(waist);
+            const shoulderMaterial = material(suit);
+            [-1, 1].forEach(side => {
+                const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.2 * build, 16, 10), shoulderMaterial);
+                shoulder.position.set(side * 0.39 * build, 1.25, 0);
+                shoulder.scale.set(1.15, 0.8, 0.85);
+                group.add(shoulder);
+            });
+            const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.22 * build, 0.25, 0.04), material(0xf4f4f0));
+            shirt.position.set(0, 1.25, 0.36);
+            group.add(shirt);
+            const lapelMaterial = material(suit, 0.6);
+            [-1, 1].forEach(side => {
+                const lapel = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.43, 3), lapelMaterial);
+                lapel.position.set(side * 0.13 * build, 1.2, 0.37);
+                lapel.rotation.z = side * 0.28;
+                lapel.rotation.x = Math.PI / 2;
+                group.add(lapel);
+            });
+            const tie = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.25, 4), material(0x00a98f));
+            tie.position.set(0, 1.12, 0.4);
+            tie.rotation.x = Math.PI;
+            group.add(tie);
+            const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.25, 12), material(skin));
+            neck.position.y = 1.55;
+            group.add(neck);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.38, 24, 16), material(skin));
+            head.position.y = 1.95;
+            head.scale.set(0.94, 1.08, 0.9);
+            group.add(head);
+            const earMaterial = material(skin);
+            [-1, 1].forEach(side => {
+                const ear = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), earMaterial);
+                ear.position.set(side * 0.35, 1.96, 0);
+                ear.scale.set(0.55, 1, 0.7);
+                group.add(ear);
+            });
+            const eyeMaterial = material(0x151515, 0.35);
+            [-1, 1].forEach(side => {
+                const eye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), eyeMaterial);
+                eye.position.set(side * 0.13, 2.01, 0.33);
+                group.add(eye);
+                const brow = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.025, 0.025), material(hairColor));
+                brow.position.set(side * 0.13, 2.1, 0.33);
+                brow.rotation.z = side * -0.08;
+                group.add(brow);
+            });
+            const nose = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.14, 5), earMaterial);
+            nose.position.set(0, 1.94, 0.39);
+            nose.rotation.x = Math.PI / 2;
+            group.add(nose);
+            const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.025, 0.02), material(0x7f3d3d));
+            mouth.position.set(0, 1.82, 0.35);
+            group.add(mouth);
+            const hairMaterial = material(hairColor);
+            if (hairStyle !== 'none') {
+                const hairGeometry = hairStyle === 'curly' ? new THREE.SphereGeometry(0.42, 20, 12) : new THREE.SphereGeometry(0.4, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.58);
+                const hair = new THREE.Mesh(hairGeometry, hairMaterial);
+                hair.position.set(0, 2.12, 0);
+                if (hairStyle === 'fade') hair.scale.set(0.96, 0.72, 0.96);
+                group.add(hair);
+            }
+            const upperArmGeometry = new THREE.CylinderGeometry(0.1 * build, 0.13 * build, 0.48, 12);
+            const forearmGeometry = new THREE.CylinderGeometry(0.085 * build, 0.105 * build, 0.42, 12);
+            [-1, 1].forEach(side => {
+                const upperArm = new THREE.Mesh(upperArmGeometry, material(suit));
+                upperArm.position.set(side * 0.55 * build, 1.05, 0);
+                upperArm.rotation.z = side * -0.12;
+                group.add(upperArm);
+                const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.11 * build, 12, 8), material(suit));
+                elbow.position.set(side * 0.6 * build, 0.8, 0);
+                group.add(elbow);
+                const forearm = new THREE.Mesh(forearmGeometry, material(suit));
+                forearm.position.set(side * 0.57 * build, 0.62, 0.02);
+                forearm.rotation.z = side * 0.1;
+                group.add(forearm);
+                const hand = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), earMaterial);
+                hand.position.set(side * 0.53 * build, 0.38, 0.03);
+                hand.scale.set(0.8, 1, 0.8);
+                group.add(hand);
+            });
+            const legMaterial = material(0x202735);
+            [-1, 1].forEach(side => {
+                const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.15 * build, 0.13 * build, 0.43, 12), legMaterial);
+                thigh.position.set(side * 0.17 * build, 0.18, 0);
+                group.add(thigh);
+                const knee = new THREE.Mesh(new THREE.SphereGeometry(0.13 * build, 12, 8), legMaterial);
+                knee.position.set(side * 0.17 * build, -0.08, 0);
+                group.add(knee);
+                const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.11 * build, 0.1 * build, 0.38, 12), legMaterial);
+                shin.position.set(side * 0.17 * build, -0.31, 0.015);
+                group.add(shin);
+            });
+            const shoes = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.13, 0.54), material(0x0b0d12));
+            shoes.position.set(0.18 * build, -0.57, 0.1);
+            group.add(shoes);
+            const secondShoe = shoes.clone();
+            secondShoe.position.x = -0.18 * build;
+            group.add(secondShoe);
+            group.traverse(object => {
+                if (object.isMesh) object.castShadow = true;
+            });
+        }
+
+        window.onload = () => {
+            const subtitle = document.getElementById('club-select-subtitle');
+            if (subtitle) subtitle.innerText = `Lead your club to victory in a ${clubsData.length}-team League Championship.`;
+            toggleCustomManager();
+            initManager3D();
+            const container = document.getElementById('club-grid-container');
+            clubsData.forEach(c => {
+                container.innerHTML += `
+                    <div class="club-card" onclick="startCareer('${c.id}')">
+                        <div class="club-name">${c.name}</div>
+                        <div class="club-budget">$${c.budget.toFixed(1)}M</div>
+                        <div class="club-spend">Summer spend: $${c.summerSpend.toFixed(1)}M</div>
+                        <div class="club-desc">${c.desc}</div>
+                    </div>`;
+            });
+        };
+
+        const managerPresets = {
+            "Pep Guardiola": { skin: '#f2c6a0', hair: 'short', hairColor: '#17120f', suit: '#18243b', build: '0.88' },
+            "Jose Mourinho": { skin: '#f2c6a0', hair: 'short', hairColor: '#d9dde5', suit: '#111111', build: '1' },
+            "Jurgen Klopp": { skin: '#f2c6a0', hair: 'short', hairColor: '#d6b36a', suit: '#7b1e2b', build: '1.15' },
+            "Carlo Ancelotti": { skin: '#f2c6a0', hair: 'none', hairColor: '#d9dde5', suit: '#111111', build: '1.15' },
+            "Mikel Arteta": { skin: '#c6865a', hair: 'fade', hairColor: '#17120f', suit: '#18243b', build: '0.88' }
+        };
+
+        function applyManagerPreset(name) {
+            const preset = managerPresets[name];
+            if (!preset) return;
+            document.getElementById('manager-skin').value = preset.skin;
+            document.getElementById('manager-hair').value = preset.hair;
+            document.getElementById('manager-hair-color').value = preset.hairColor;
+            document.getElementById('manager-suit').value = preset.suit;
+            document.getElementById('manager-build').value = preset.build;
+            updateManager3D();
+        }
+
+        function toggleCustomManager() {
+            const selector = document.getElementById('manager-select');
+            const customName = document.getElementById('custom-manager-name');
+            customName.disabled = selector.value !== 'custom';
+            if (customName.disabled) customName.value = '';
+            applyManagerPreset(selector.value);
+        }
+
+        function getSelectedManagerName() {
+            const selected = document.getElementById('manager-select').value;
+            if (selected !== 'custom') return selected;
+            return document.getElementById('custom-manager-name').value.trim() || 'New Manager';
+        }
+
+        function generateYouthPlayer() {
+            const positions = ["FWD", "MID", "DEF", "GK"];
+            const pos = positions[Math.floor(Math.random() * positions.length)];
+            const ovr = Math.floor(Math.random() * 8) + 62;
+            const id = Math.floor(Math.random() * 1000000) + 1000;
+            return {
+                id: id, name: "Youth Prospect", pos: pos, price: 0.8,
+                pac: ovr, sho: ovr, pas: ovr, dri: ovr, def: ovr, phy: ovr,
+                nat: "INT", ovr: ovr, age: Math.floor(Math.random() * 3) + 16,
+                morale: 85, injuryWeeks: 0, suspended: false, fitness: 100, isYouth: true
+            };
+        }
+
+        function startCareer(clubId) {
+            document.getElementById('club-select').style.display = 'none';
+            const club = clubsData.find(c => c.id === clubId);
+            
+            state.clubId = clubId;
+            state.managerName = getSelectedManagerName();
+            state.clubName = club.name; 
+            state.budget = club.budget; 
+            if (clubId === 'tot') {
+                state.secretBudget = 10000;
+                state.budget += state.secretBudget / 1000000;
+            } else {
+                state.secretBudget = 0;
+            }
+            state.boardMultiplier = club.mult; 
+            state.boardConfidence = club.conf;
+
+            // Build a full league from every real club, with the chosen club replaced by YOUR CLUB.
+            state.league = [{ id: 'user', name: club.name, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0, isUser: true, rating: club.rating || 82 }];
+            clubsData.forEach(c => {
+                if (c.id === club.id) return;
+                state.league.push({ id: c.id, name: c.name, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0, isUser: false, rating: c.rating || 80 });
+            });
+
+            // Generate a full single round-robin schedule across the whole league.
+            state.schedule = generateRoundRobin(state.league.length);
+            state.totalWeeks = state.schedule.length;
+
+            club.xi.forEach((playerId, index) => {
+                const p = allPlayers.find(x => x.id === playerId);
+                if (p) state.slots[index] = { ...prepareCareerPlayer(p, clubId), fitness: 100, onIntlDuty: false };
+            });
+
+            let slotIdx = 11;
+            (club.bench || []).forEach(playerId => {
+                if (slotIdx > 24) return;
+                const p = allPlayers.find(x => x.id === playerId);
+                if (p) state.slots[slotIdx++] = { ...prepareCareerPlayer(p, clubId), fitness: 100, onIntlDuty: false, morale: 85, injuryWeeks: 0, suspended: false, isYouth: false };
+            });
+            for (let i = slotIdx; i < 25; i++) {
+                state.slots[i] = prepareCareerPlayer(generateYouthPlayer(), clubId);
+            }
+            
+            document.getElementById('sidebar-club-name').innerText = state.clubName;
+            document.getElementById('scoreboard-home').innerText = state.clubName.toUpperCase();
+            
+            addNews("Manager Appointed", `${state.managerName} has been appointed at ${state.clubName}. The board expects top performance in the ${state.totalWeeks}-week, ${state.league.length}-team league season.`, 'good', 'Club board');
+            if (clubId === 'tot') {
+                addNews("Transfer Window Review", "A major rebuild has been completed: Tonali, Fernandes, Savinho, Mudryk, Marmoush, van Hecke, Tosin, Robertson and Dubravka arrive, while Romero, Spence and Vicario depart.", 'good', 'Transfer desk');
+            } else {
+                addNews("Squad Briefing", `${state.clubName} begin the season with a ${club.xi.length}-player starting group and ${club.bench.length} senior substitutes after the summer window.`, 'neutral', 'Club media');
+            }
+            
+            changeFormation();
+            renderMarket();
+            renderLeagueTable();
+        }
+
+        function getExpectedPos(idx) {
+            if (idx > 10) return 'SUB';
+            if (idx === 10) return 'GK';
+            const f = formations[state.formation];
+            if (idx < f.fwd) return 'FWD';
+            if (idx < f.fwd + f.mid) return 'MID';
+            return 'DEF';
+        }
+
+        function getEffectiveStats(player, slotIndex) {
+            if (!player || player.injuryWeeks > 0 || player.suspended || player.onIntlDuty) {
+                return { pac:0, sho:0, pas:0, dri:0, def:0, phy:0, ovr:0, outOfPos:false, avail:false };
+            }
+            
+            let expected = getExpectedPos(slotIndex);
+            let posMult = (expected === 'SUB' || player.pos === expected) ? 1.0 : 0.6; 
+            let fitMult = player.fitness / 100;
+            let moraleMult = player.morale / 80;
+
+            let finalMult = posMult * (0.6 + fitMult*0.4) * (0.8 + moraleMult*0.2);
+            return {
+                pac: Math.round(player.pac * finalMult), sho: Math.round(player.sho * finalMult),
+                pas: Math.round(player.pas * finalMult), dri: Math.round(player.dri * finalMult),
+                def: Math.round(player.def * finalMult), phy: Math.round(player.phy * finalMult),
+                ovr: Math.round(player.ovr * finalMult), outOfPos: posMult < 1.0, avail: true
+            };
+        }
+
+        function calculateTeamScores() {
+            let atk = 0, mid = 0, def = 0;
+            let missingPlayers = false;
+
+            for(let i=0; i<=10; i++) {
+                if (!state.slots[i]) { missingPlayers = true; continue; }
+                let eff = getEffectiveStats(state.slots[i], i);
+                if (!eff.avail) { missingPlayers = true; continue; }
+                
+                const expPos = getExpectedPos(i);
+                if (expPos === 'FWD') atk += (eff.sho + eff.pac) / 2;
+                if (expPos === 'MID') mid += (eff.pas + eff.dri) / 2;
+                if (expPos === 'DEF' || expPos === 'GK') def += (eff.def + eff.phy) / 2;
+            }
+
+            const f = formations[state.formation];
+            atk = (atk / f.fwd) || 0; mid = (mid / f.mid) || 0; def = (def / (f.def + 1)) || 0;
+            
+            state.tactic = document.getElementById('tactic-select').value;
+            if(state.tactic === 'gegenpress') { def += 5; atk += 4; }
+            if(state.tactic === 'parkbus') { def += 10; atk -= 8; }
+
+            return { atk: Math.round(atk), mid: Math.round(mid), def: Math.round(def), validXI: !missingPlayers };
+        }
+
+        function changeFormation() {
+            state.formation = document.getElementById('formation-select').value;
+            const f = formations[state.formation];
+            const pitch = document.getElementById('pitch-area');
+            pitch.innerHTML = '';
+            
+            let currentIdx = 0;
+            
+            let fwdRow = document.createElement('div'); fwdRow.className = 'pitch-row';
+            for(let i=0; i<f.fwd; i++) { fwdRow.innerHTML += generateSlotHTML(currentIdx++); }
+            pitch.appendChild(fwdRow);
+            
+            let midRow = document.createElement('div'); midRow.className = 'pitch-row';
+            for(let i=0; i<f.mid; i++) { midRow.innerHTML += generateSlotHTML(currentIdx++); }
+            pitch.appendChild(midRow);
+            
+            let defRow = document.createElement('div'); defRow.className = 'pitch-row';
+            for(let i=0; i<f.def; i++) { defRow.innerHTML += generateSlotHTML(currentIdx++); }
+            pitch.appendChild(defRow);
+            
+            let gkRow = document.createElement('div'); gkRow.className = 'pitch-row';
+            gkRow.innerHTML = generateSlotHTML(10);
+            pitch.appendChild(gkRow);
+
+            renderBenches();
+            updateTeamStats();
+        }
+
+        function renderBenches() {
+            let subHTML = ''; for(let i=11; i<=17; i++) subHTML += generateSlotHTML(i);
+            document.getElementById('row-sub').innerHTML = subHTML;
+
+            let resHTML = ''; for(let i=18; i<=24; i++) resHTML += generateSlotHTML(i);
+            document.getElementById('row-res').innerHTML = resHTML;
+        }
+
+        function generateSlotHTML(index) {
+            const p = state.slots[index];
+            const expPos = getExpectedPos(index);
+            const isSelected = state.selectedSlot === index ? 'selected' : '';
+            
+            if (!p) return `<div class="slot empty ${isSelected}" onclick="handleSlotClick(${index})"><div>${expPos}</div><div>SLOT ${index+1}</div></div>`;
+
+            const eff = getEffectiveStats(p, index);
+            const isGold = p.ovr >= 85 ? 'gold' : '';
+            const isYouth = p.isYouth ? 'youth' : '';
+            const fitColor = p.fitness > 75 ? 'var(--fitness-good)' : p.fitness > 40 ? 'var(--fitness-warn)' : 'var(--fitness-bad)';
+            
+            let statusHTML = '';
+            let cardDim = '';
+            if (p.injuryWeeks > 0) { statusHTML = '<div class="status-icon injury">🏥</div>'; cardDim = 'intl-duty'; }
+            else if (p.suspended) { statusHTML = '<div class="status-icon suspend">🟥</div>'; cardDim = 'intl-duty'; }
+            else if (p.onIntlDuty) { statusHTML = '<div class="status-icon">✈️</div>'; cardDim = 'intl-duty'; }
+            else if (eff.outOfPos) { statusHTML = '<div class="status-icon warn">⚠️</div>'; }
+
+            return `
+                <div class="slot ${isSelected} ${cardDim}" onclick="handleSlotClick(${index})">
+                    ${statusHTML}
+                    <div class="fut-card ${isGold} ${isYouth}">
+                        <div class="top-row"><div class="ovr">${eff.ovr || p.ovr}</div><div class="pos">${p.pos}</div></div>
+                        <div class="name">${p.name}</div>
+                        <div class="fut-stats">
+                            <div>PAC ${eff.pac || p.pac}</div> <div>DRI ${eff.dri || p.dri}</div>
+                            <div>SHO ${eff.sho || p.sho}</div> <div>DEF ${eff.def || p.def}</div>
+                            <div>PAS ${eff.pas || p.pas}</div> <div>PHY ${eff.phy || p.phy}</div>
+                        </div>
+                        <div class="player-info-row">
+                            <span>Age ${p.age}</span><span>MRL ${p.morale}</span>
+                        </div>
+                        <div class="fitness-bar-bg"><div class="fitness-bar-fill" style="width:${p.fitness}%; background:${fitColor}"></div></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleSlotClick(index) {
+            if (state.selectedSlot === null) {
+                if (state.slots[index]) openPlayerModal(index);
+                else state.selectedSlot = index;
+            } else {
+                if (state.selectedSlot !== index) {
+                    let temp = state.slots[state.selectedSlot];
+                    state.slots[state.selectedSlot] = state.slots[index];
+                    state.slots[index] = temp;
+                }
+                state.selectedSlot = null;
+                changeFormation();
+            }
+        }
+
+        function openPlayerModal(index) {
+            const p = state.slots[index];
+            if (!p) return;
+            const modal = document.getElementById('player-modal');
+            const content = document.getElementById('player-modal-content');
+            
+            content.innerHTML = `
+                <div class="modal-close" onclick="closePlayerModal()">✕</div>
+                <h2 style="margin:0; color:var(--accent); font-size:22px;">${p.name.toUpperCase()}</h2>
+                <p style="color:var(--gold); font-weight:bold; font-size:13px; margin:2px 0 15px 0;">${p.pos} | Rating: ${p.ovr} | Age: ${p.age} | Nat: ${p.nat}</p>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:13px; background:rgba(0,0,0,0.3); padding:12px; border-radius:6px;">
+                    <div>Pace: <b>${p.pac}</b></div> <div>Dribbling: <b>${p.dri}</b></div>
+                    <div>Shooting: <b>${p.sho}</b></div> <div>Defense: <b>${p.def}</b></div>
+                    <div>Passing: <b>${p.pas}</b></div> <div>Physical: <b>${p.phy}</b></div>
+                </div>
+                <div style="margin-top:15px; font-size:12px;">
+                    <div>Morale: <b>${p.morale}%</b> | Fitness: <b>${p.fitness}%</b></div>
+                    <div>Value: <b style="color:var(--gold)">$${p.price.toFixed(1)}M</b></div>
+                </div>
+                <button class="modal-btn" onclick="trainPlayer(${index})">Individual Training Boost ($1.0M)</button>
+                <button class="modal-btn" style="background:var(--panel-bg); border:1px solid var(--accent); color:var(--accent);" onclick="selectForSwap(${index})">Swap Position in Squad</button>
+                <button class="modal-btn" style="background:var(--danger); color:white;" onclick="sellPlayerModal(${index})">Sell Player (80% Value)</button>
+            `;
+            modal.style.display = 'flex';
+        }
+
+        function closePlayerModal() { document.getElementById('player-modal').style.display = 'none'; }
+        
+        function selectForSwap(index) {
+            closePlayerModal();
+            state.selectedSlot = index;
+            changeFormation();
+            showToast("Select target slot to swap player into.");
+        }
+
+        function trainPlayer(index) {
+            if (state.budget < 1.0) { showToast("Insufficient funds!", true); return; }
+            state.budget -= 1.0;
+            const p = state.slots[index];
+            p.pac += 1; p.sho += 1; p.pas += 1; p.dri += 1; p.ovr += 1;
+            showToast(`${p.name} attributes increased!`);
+            openPlayerModal(index);
+            updateSidebar();
+            changeFormation();
+        }
+
+        function sellPlayerModal(index) {
+            const p = state.slots[index];
+            closePlayerModal();
+            sellPlayer(index);
+        }
+
+        function sellPlayer(index) {
+            const p = state.slots[index];
+            if (p) {
+                state.budget += p.price * 0.8;
+                state.slots[index] = null; 
+                state.selectedSlot = null;
+                showToast(`Sold ${p.name}.`); 
+                addNews("Player Sold", `${p.name} has been sold for $${(p.price * 0.8).toFixed(1)}M.`, 'neutral');
+                changeFormation(); updateSidebar(); renderMarket();
+            }
+        }
+
+        let marketRenderTimer = null;
+
+        function queueMarketRender() {
+            clearTimeout(marketRenderTimer);
+            marketRenderTimer = setTimeout(renderMarket, 120);
+        }
+
+        function renderMarket() {
+            const grid = document.getElementById('market-grid');
+            const search = document.getElementById('market-search').value.toLowerCase();
+            let count = 0;
+            const cards = [];
+
+            allPlayers.forEach(p => {
+                if (state.marketFilter !== 'ALL' && p.pos !== state.marketFilter) return;
+                if (search && !p.name.toLowerCase().includes(search)) return;
+                
+                count++;
+                const isOwned = state.slots.some(s => s && s.id === p.id);
+                const squadFull = !state.slots.includes(null);
+                const canAfford = state.budget >= p.price;
+                let btnText = "BUY", disabled = false;
+                if (isOwned) { btnText = "OWNED"; disabled = true; }
+                else if (squadFull) { btnText = "FULL"; disabled = true; }
+                else if (!canAfford) { btnText = "POOR"; disabled = true; }
+                
+                cards.push(`
+                    <div class="market-item">
+                        <div class="slot" style="margin-bottom:5px;"><div class="fut-card ${p.ovr>=85?'gold':''}"><div class="top-row"><div class="ovr">${p.ovr}</div><div class="pos">${p.pos}</div></div><div class="name">${p.name}</div><div class="fut-stats"><div>PAC ${p.pac}</div><div>DRI ${p.dri}</div><div>SHO ${p.sho}</div><div>DEF ${p.def}</div><div>PAS ${p.pas}</div><div>PHY ${p.phy}</div></div><div class="player-info-row" style="justify-content:center;"><span>Age ${p.age}</span></div></div></div>
+                        <div style="text-align:center;font-weight:bold;color:var(--gold);font-size:12px;">$${p.price.toFixed(1)}M</div>
+                        <button class="buy-btn" onclick="buyPlayer(${p.id}, '${p.name}', ${p.price})" ${disabled?'disabled':''}>${btnText}</button>
+                    </div>`);
+            });
+
+            grid.innerHTML = cards.join('');
+            document.getElementById('market-scout-badge').innerText = `${count} Players Available`;
+        }
+
+        function setMarketFilter(f, btn) { state.marketFilter = f; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderMarket(); }
+        
+        function buyPlayer(id, name, price) {
+            const p = allPlayers.find(x => x.id === id);
+            const emptyIdx = state.slots.findIndex(s => s === null);
+            if (emptyIdx !== -1 && state.budget >= p.price) {
+                state.budget -= p.price; 
+                state.slots[emptyIdx] = { ...prepareCareerPlayer(p, state.clubId), fitness: 100, onIntlDuty: false, morale: 85, injuryWeeks: 0, suspended: false, isYouth: false };
+                showToast(`Signed ${p.name}!`);
+                addNews("Transfer Success", `${state.clubName} finalized the signing of ${name} for $${price.toFixed(1)}M.`, 'good');
+                renderMarket(); updateSidebar(); changeFormation();
+            }
+        }
+
+        const facCosts = { stadium: [0, 15, 30, 50, 80], training: [0, 10, 20, 35, 60], medical: [0, 12, 25, 40, 70] };
+        function upgradeFacility(type) {
+            const currentLvl = state.facilities[type];
+            if (currentLvl >= 5) return;
+            const cost = facCosts[type][currentLvl];
+            if (state.budget >= cost) {
+                state.budget -= cost;
+                state.facilities[type]++;
+                document.getElementById(`fac-${type.substring(0,4)}-lvl`).innerText = state.facilities[type];
+                showToast(`${type.toUpperCase()} Upgraded to Level ${state.facilities[type]}!`);
+                addNews("Facility Upgrade", `Upgraded ${type} facilities to level ${state.facilities[type]}.`, 'good');
+                updateSidebar();
+            } else {
+                showToast("Not enough funds!", true);
+            }
+        }
+
+        function renderLeagueTable() {
+            state.league.sort((a,b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf);
+            const tbody = document.getElementById('league-tbody');
+            tbody.innerHTML = '';
+            
+            state.league.forEach((t, index) => {
+                const gd = t.gf - t.ga;
+                const isUser = t.isUser ? 'user-row' : '';
+                tbody.innerHTML += `
+                    <tr class="${isUser}">
+                        <td>${index + 1}</td>
+                        <td>${t.name}</td>
+                        <td>${t.p}</td>
+                        <td>${t.w}</td>
+                        <td>${t.d}</td>
+                        <td>${t.l}</td>
+                        <td>${t.gf}</td>
+                        <td>${t.ga}</td>
+                        <td>${gd > 0 ? '+'+gd : gd}</td>
+                        <td><b>${t.pts}</b></td>
+                    </tr>`;
+            });
+
+            const userRank = state.league.findIndex(t => t.isUser) + 1;
+            const suffix = userRank === 1 ? 'st' : userRank === 2 ? 'nd' : userRank === 3 ? 'rd' : 'th';
+            document.getElementById('sb-rank').innerText = `${userRank}${suffix}`;
+        }
+
+        // Returns the user's opponent object for the current week, based on the real round-robin schedule.
+        function getOpponentTeam() {
+            const weekIdx = state.week - 1;
+            const userIdx = state.league.findIndex(t => t.isUser);
+            const pairs = state.schedule[weekIdx];
+            if (pairs) {
+                const pair = pairs.find(p => p[0] === userIdx || p[1] === userIdx);
+                if (pair) {
+                    const oppIdx = pair[0] === userIdx ? pair[1] : pair[0];
+                    return state.league[oppIdx];
+                }
+            }
+            // Bye week or schedule exhausted: fall back to a random AI side (rare with even team counts).
+            return state.league.find(t => !t.isUser) || state.league[0];
+        }
+
+        function simulateAILeagueMatches() {
+            const weekIdx = state.week - 1;
+            const userIdx = state.league.findIndex(t => t.isUser);
+            const pairs = state.schedule[weekIdx] || [];
+            pairs.forEach(([a, b]) => {
+                if (a === userIdx || b === userIdx) return; // user's own match is resolved separately
+                let t1 = state.league[a], t2 = state.league[b];
+                if (!t1 || !t2) return;
+                let g1 = Math.floor(Math.random() * 3) + (t1.rating > t2.rating ? 1 : 0);
+                let g2 = Math.floor(Math.random() * 3) + (t2.rating > t1.rating ? 1 : 0);
+
+                t1.p++; t2.p++; t1.gf += g1; t1.ga += g2; t2.gf += g2; t2.ga += g1;
+                if(g1 > g2) { t1.w++; t1.pts += 3; t2.l++; }
+                else if(g1 < g2) { t2.w++; t2.pts += 3; t1.l++; }
+                else { t1.d++; t1.pts += 1; t2.d++; t2.pts += 1; }
+            });
+        }
+
+        function setMentality(m, btn) {
+            state.liveMentality = m;
+            document.querySelectorAll('.mentality-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function expectedGoals(teamAttack, opponentRating, mentalityBonus) {
+            return Math.max(0.2, Math.min(3.5, 1.35 + (teamAttack - opponentRating) * 0.035 + mentalityBonus));
+        }
+
+        function applyMatchInjuries() {
+            const medicalProtection = state.facilities.medical * 0.004;
+            state.slots.slice(0, 11).forEach(player => {
+                if (!player || player.injuryWeeks > 0) return;
+                const fatigueRisk = Math.max(0, (70 - player.fitness) * 0.0015);
+                if (Math.random() < Math.max(0.001, 0.012 + fatigueRisk - medicalProtection)) {
+                    player.injuryWeeks = Math.random() < 0.8 ? 1 : 2;
+                    addNews("Fitness Update", `${player.name} picked up a minor injury and is expected to miss ${player.injuryWeeks} week${player.injuryWeeks === 1 ? '' : 's'}.`, 'bad', 'Medical staff');
+                }
+            });
+        }
+
+        function startMatch() {
+            if (state.matchInProgress) return;
+            const scores = calculateTeamScores();
+            if (!scores.validXI) {
+                state.boardConfidence -= 15;
+                showToast("FORFEIT! Missing players in XI", true);
+                addNews("Match Forfeited!", `Could not field 11 fit players. Board trust reduced by 15%.`, 'bad');
+                if(checkFired()) return;
+                processEndOfWeek(0, 0, 3, "Opponent"); return;
+            }
+            
+            state.matchInProgress = true; updateSidebar();
+            const oppTeam = getOpponentTeam();
+            let minute = 0, myGoals = 0, oppGoals = 0;
+            const comm = document.getElementById('commentary');
+            comm.innerHTML = '<div class="comm-event" style="color:var(--accent);">KICK OFF! Match underway.</div>';
+            document.getElementById('score-home').innerText = '0'; document.getElementById('score-away').innerText = '0';
+
+            const loop = setInterval(() => {
+                minute += 3;
+                document.getElementById('match-clock').innerText = `${minute < 10 ? '0':''}${minute}:00`;
+                let e = null;
+                
+                let atkBonus = state.liveMentality === 'allout' ? 12 : state.liveMentality === 'attacking' ? 6 : state.liveMentality === 'defensive' ? -8 : 0;
+                let defBonus = state.liveMentality === 'defensive' ? 10 : state.liveMentality === 'allout' ? -12 : 0;
+                const myExpectedGoals = expectedGoals(scores.atk + scores.mid * 0.25, oppTeam.rating, atkBonus * 0.03);
+                const opponentExpectedGoals = expectedGoals(oppTeam.rating, scores.def + scores.mid * 0.2, -defBonus * 0.03);
+
+                if (Math.random() < 1 - Math.exp(-myExpectedGoals / 30)) {
+                    myGoals++; document.getElementById('score-home').innerText = myGoals; 
+                    e = `<b>${minute}'</b> <span style="color:var(--gold)">GOAL!</span> Outstanding attack finish by ${state.clubName}!`;
+                } else if (Math.random() < 1 - Math.exp(-opponentExpectedGoals / 30)) {
+                    oppGoals++; document.getElementById('score-away').innerText = oppGoals; 
+                    e = `<b>${minute}'</b> <span style="color:var(--danger)">GOAL.</span> ${oppTeam.name} breaks through down the flank.`;
+                }
+
+                if (e) comm.innerHTML = `<div class="comm-event">${e}</div>` + comm.innerHTML;
+                
+                if (minute >= 90) { clearInterval(loop); finishMatch(myGoals, oppGoals, oppTeam); }
+            }, 120);
+        }
+
+        function finishMatch(myG, oppG, oppTeam) {
+            state.matchInProgress = false;
+            let revenue = (4.0 + (state.facilities.stadium * 1.5)) * state.boardMultiplier; 
+            
+            let userTeam = state.league.find(t => t.isUser);
+            userTeam.p++; userTeam.gf += myG; userTeam.ga += oppG;
+            oppTeam.p++; oppTeam.gf += oppG; oppTeam.ga += myG;
+
+            let resultMsg = "";
+            let trustBoost = 0;
+
+            if (myG > oppG) { 
+                userTeam.w++; userTeam.pts += 3; oppTeam.l++;
+                revenue += 4.5; 
+                resultMsg = "VICTORY"; 
+                trustBoost = 14; 
+                if (oppG === 0) trustBoost += 4; 
+                if (myG >= 3) trustBoost += 2; 
+            } else if (myG === oppG) { 
+                userTeam.d++; userTeam.pts += 1; oppTeam.d++; oppTeam.pts += 1;
+                revenue += 1.5; 
+                resultMsg = "DRAW"; 
+                trustBoost = 2;
+            } else { 
+                userTeam.l++; oppTeam.w++; oppTeam.pts += 3;
+                resultMsg = "DEFEAT"; 
+                trustBoost = -8;
+            }
+
+            simulateAILeagueMatches();
+            renderLeagueTable();
+
+            state.boardConfidence = Math.max(0, Math.min(100, state.boardConfidence + trustBoost));
+
+            addNews(`Match Result: ${resultMsg}`, `${state.clubName} finished ${myG}-${oppG} vs ${oppTeam.name}. Board Trust change: ${trustBoost >= 0 ? '+'+trustBoost : trustBoost}%. Ticket Revenue: $${revenue.toFixed(1)}M.`, trustBoost>=0?'good':'bad');
+
+            processEndOfWeek(revenue, myG, oppG, oppTeam.name);
+            applyMatchInjuries();
+
+            const comm = document.getElementById('commentary');
+            comm.innerHTML = `<div class="comm-event" style="color:var(--gold); margin-top:10px;">FULL TIME: ${resultMsg}</div>` + comm.innerHTML;
+            
+            triggerPressConference(resultMsg, oppTeam.name);
+            setTimeout(() => nav('squad'), 2000); 
+        }
+
+        function processEndOfWeek(revenue) {
+            let wages = 0;
+            state.slots.forEach(p => { if(p) wages += (p.ovr > 85 ? 0.20 : p.ovr > 75 ? 0.10 : 0.03); });
+            
+            state.budget += revenue;
+            state.budget -= wages;
+
+            if (state.budget < 0) {
+                let debtPenalty = Math.min(8, Math.ceil(Math.abs(state.budget) / 5));
+                state.boardConfidence -= debtPenalty;
+                showToast(`Club in debt (-${debtPenalty}% Trust)`, true);
+                addNews("Debt Warning", `Club finances are in negative balance. Sell players to balance the wage bill.`, 'bad');
+            }
+
+            const restRecovery = 20;
+            let trainBoost = state.facilities.training * 4;
+            for(let i=0; i<25; i++) {
+                let p = state.slots[i]; if(!p) continue;
+                // The match takes fitness, then the six-day gap restores it for the next fixture.
+                if (i <= 10) p.fitness = Math.max(20, p.fitness - 18);
+                const recovery = i <= 10 ? restRecovery : restRecovery + 8;
+                p.fitness = Math.min(100, p.fitness + recovery + trainBoost);
+                if (p.injuryWeeks > 0) p.injuryWeeks--;
+            }
+
+            state.week++;
+            if(checkFired()) return;
+
+            if (state.week > state.totalWeeks) {
+                setTimeout(() => {
+                    const finalRank = state.league.findIndex(t => t.isUser) + 1;
+                    alert(`SEASON ENDED!\nFinal Position: ${finalRank}th of ${state.league.length}\nPoints: ${state.league.find(t=>t.isUser).pts}`);
+                    state.week = 1; 
+                    state.league.forEach(t => { t.p=0; t.w=0; t.d=0; t.l=0; t.gf=0; t.ga=0; t.pts=0; });
+                    state.schedule = generateRoundRobin(state.league.length);
+                    state.budget += 35.0;
+                    renderLeagueTable();
+                }, 1500);
+            }
+            updateSidebar(); changeFormation();
+        }
+
+        function triggerPressConference(res, oppName) {
+            const container = document.getElementById('press-conference-container');
+            container.style.display = 'block';
+            container.innerHTML = `
+                <div class="press-box">
+                    <div class="press-q">Press Question: "What are your thoughts on today's ${res} against ${oppName}?"</div>
+                    <div class="press-opt" onclick="answerPress(1)">"The squad executed our strategy perfectly today." (+Morale)</div>
+                    <div class="press-opt" onclick="answerPress(2)">"We must keep working harder. Standard wasn't high enough." (+Board Trust)</div>
+                </div>`;
+        }
+
+        function answerPress(choice) {
+            document.getElementById('press-conference-container').style.display = 'none';
+            if (choice === 1) {
+                state.slots.forEach(p => { if(p) p.morale = Math.min(100, p.morale + 5); });
+                showToast("Squad Morale Increased!");
+            } else {
+                state.boardConfidence = Math.min(100, state.boardConfidence + 4);
+                showToast("Board Confidence Increased!");
+            }
+            updateSidebar();
+        }
+
+        function updateTeamStats() {
+            const scores = calculateTeamScores();
+            const updateBar = (id, val) => {
+                document.getElementById(`stat-${id}`).innerText = val;
+                document.getElementById(`bar-${id}`).style.width = `${Math.min(val, 100)}%`;
+                document.getElementById(`bar-${id}`).style.background = val > 80 ? 'var(--accent)' : val > 65 ? 'var(--gold)' : 'var(--danger)';
+            };
+            updateBar('atk', scores.atk); updateBar('mid', scores.mid); updateBar('def', scores.def);
+            updateSidebar();
+        }
+
+        function updateSidebar() {
+            let count = 0, totalMorale = 0, wageCalc = 0;
+            state.slots.forEach(p => { 
+                if(p) { totalMorale += p.morale; count++; wageCalc += (p.ovr > 85 ? 0.20 : p.ovr > 75 ? 0.10 : 0.03); } 
+            });
+            
+            document.getElementById('sb-wages').innerText = `-$${wageCalc.toFixed(1)}M`;
+            document.getElementById('sb-budget').innerText = `$${state.budget.toFixed(1)}M`;
+            document.getElementById('sb-budget').style.color = state.budget < 0 ? 'var(--danger)' : 'var(--accent)';
+            document.getElementById('sb-morale').innerText = count > 0 ? `${Math.round(totalMorale/count)}%` : '0%';
+            document.getElementById('sb-week').innerText = `${state.week} / ${state.totalWeeks || 21}`;
+            const seasonBadge = document.getElementById('season-length-badge');
+            if (seasonBadge && state.totalWeeks) seasonBadge.innerText = `${state.totalWeeks} Weeks Season`;
+
+            document.getElementById('board-pct').innerText = `${Math.max(0, Math.round(state.boardConfidence))}%`;
+            document.getElementById('board-bar').style.width = `${Math.max(0, Math.min(100, state.boardConfidence))}%`;
+
+            if (state.league.length > 0) {
+                const opp = getOpponentTeam();
+                document.getElementById('match-opp-info').innerText = `Opponent: ${opp.name}`;
+                document.getElementById('scoreboard-opp').innerText = opp.name.toUpperCase();
+            }
+
+            const scores = calculateTeamScores();
+            const playBtn = document.getElementById('btn-play');
+            if (!scores.validXI) {
+                playBtn.disabled = false; playBtn.innerText = "FORFEIT MATCH (INVALID XI)"; playBtn.className = "play-match-btn danger";
+            } else {
+                playBtn.disabled = state.matchInProgress; playBtn.innerText = state.matchInProgress ? "MATCH IN PROGRESS..." : "KICK OFF MATCH"; playBtn.className = "play-match-btn";
+            }
+        }
+
+        function nav(v) { 
+            state.selectedSlot = null; 
+            document.querySelectorAll('.view, .nav-item').forEach(e => e.classList.remove('active')); 
+            document.getElementById(`view-${v}`).classList.add('active'); 
+            event.currentTarget.classList.add('active'); 
+            if(v==='market') renderMarket(); 
+            if(v==='squad') changeFormation(); 
+            if(v==='news') renderNews();
+            if(v==='league') renderLeagueTable();
+        }
+
+        function addNews(title, body, type="neutral", source="Club media") {
+            state.news.unshift({ title, body, type, source, week: state.week });
+            state.unreadNews++;
+            updateSidebar();
+            if (document.getElementById('view-news').classList.contains('active')) renderNews();
+        }
+
+        function renderNews() {
+            state.unreadNews = 0; updateSidebar();
+            const container = document.getElementById('news-container');
+            container.innerHTML = '';
+            state.news.forEach(item => {
+                container.innerHTML += `
+                    <div class="news-card ${item.type}">
+                        <div class="news-header">Match Week ${item.week} · ${item.source || 'Club media'}</div>
+                        <div class="news-title">${item.title}</div>
+                        <div class="news-body">${item.body}</div>
+                    </div>`;
+            });
+        }
+
+        function showToast(msg, isErr=false) {
+            const t = document.getElementById('toast'); t.innerText = msg; t.className = isErr ? 'error show' : 'show'; setTimeout(() => t.className = '', 2500);
+        }
+
+        function checkFired() {
+            if (state.boardConfidence <= 0) { document.getElementById('game-over').style.display = 'flex'; return true; }
+            return false;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ 'Create your account' if form_mode == 'signup' else 'Sign in' }} – ÆtherScan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bg: #0a0e1a; --panel: rgba(255,255,255,0.045); --panel-hover: rgba(255,255,255,0.075);
+        --border: rgba(255,255,255,0.10); --text: #eef1f8; --text-dim: #9aa4bf; --text-faint: #6b7490;
+        --accent1: #22d3ee; --accent2: #a78bfa; --accent3: #f472b6;
+        --aurora-gradient: linear-gradient(120deg, var(--accent1), var(--accent2) 50%, var(--accent3));
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', Arial, sans-serif; }
+    html, body { height: 100%; }
+    body {
+        background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center;
+        min-height: 100vh; padding: 24px;
+    }
+    .card {
+        width: 100%; max-width: 380px; background: var(--panel); border: 1px solid var(--border);
+        border-radius: 20px; padding: 36px 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+    .logo {
+        font-size: 22px; font-weight: 800; text-align: center; margin-bottom: 6px;
+        background: var(--aurora-gradient); -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    h1 { font-size: 18px; font-weight: 700; text-align: center; margin-bottom: 26px; color: var(--text-dim); }
+    label { display: block; font-size: 12px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; margin-top: 16px; }
+    label:first-of-type { margin-top: 0; }
+    input {
+        width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border);
+        background: rgba(255,255,255,0.03); color: var(--text); font-size: 14px; outline: none;
+    }
+    input:focus { border-color: var(--accent2); }
+    button {
+        width: 100%; margin-top: 24px; padding: 13px; border-radius: 10px; border: none; cursor: pointer;
+        font-weight: 700; font-size: 14px; background: var(--aurora-gradient); color: #0a0e1a;
+    }
+    button:hover { filter: brightness(1.08); }
+    .switch { text-align: center; margin-top: 18px; font-size: 13px; color: var(--text-faint); }
+    .switch a { color: var(--accent1); font-weight: 700; text-decoration: none; }
+    .switch a:hover { text-decoration: underline; }
+    .error-box {
+        background: rgba(244,63,94,0.12); border: 1px solid rgba(244,63,94,0.35); color: #fda4af;
+        border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 18px;
+    }
+    .back-link { display: block; text-align: center; margin-top: 22px; font-size: 12px; color: var(--text-faint); text-decoration: none; }
+    .back-link:hover { color: var(--text-dim); }
+</style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo">ÆtherScan</div>
+        <h1>{{ 'Create your account' if form_mode == 'signup' else 'Sign in to your account' }}</h1>
+
+        {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+
+        {% if form_mode == 'signup' %}
+        <form method="POST" action="/signup">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required autofocus autocomplete="username">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required autocomplete="email">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password">
+            <label for="confirm">Confirm password</label>
+            <input type="password" id="confirm" name="confirm" required minlength="8" autocomplete="new-password">
+            <button type="submit">Create account</button>
+        </form>
+        <div class="switch">Already have an account? <a href="/login">Sign in</a></div>
+        {% else %}
+        <form method="POST" action="/login">
+            <label for="username">Username or email</label>
+            <input type="text" id="username" name="username" required autofocus autocomplete="username">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required autocomplete="current-password">
+            <button type="submit">Sign in</button>
+        </form>
+        <div class="switch">New here? <a href="/signup">Create an account</a></div>
+        {% endif %}
+
+        <a class="back-link" href="/">&larr; Back to search</a>
+    </div>
+</body>
+</html>

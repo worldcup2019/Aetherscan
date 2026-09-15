@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aether Games</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bg: #0a0e1a; --panel: rgba(255,255,255,0.045); --panel-hover: rgba(255,255,255,0.075);
+        --border: rgba(255,255,255,0.10); --text: #eef1f8; --text-dim: #9aa4bf; --text-faint: #6b7490;
+        --accent1: #22d3ee; --accent2: #a78bfa; --accent3: #f472b6;
+        --aurora-gradient: linear-gradient(120deg, var(--accent1), var(--accent2) 50%, var(--accent3));
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', Arial, sans-serif; }
+    html, body { height: 100%; }
+    body {
+        background: var(--bg); color: var(--text); position: relative; overflow-x: hidden;
+        min-height: 100vh;
+    }
+    .aurora { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+    .aurora span { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.3; }
+    .aurora span:nth-child(1) { width: 480px; height: 480px; background: var(--accent1); top: -160px; left: -120px; animation: drift1 22s ease-in-out infinite alternate; }
+    .aurora span:nth-child(2) { width: 520px; height: 520px; background: var(--accent2); bottom: -200px; right: -160px; animation: drift2 26s ease-in-out infinite alternate; }
+    .aurora span:nth-child(3) { width: 380px; height: 380px; background: var(--accent3); top: 40%; left: 50%; animation: drift3 30s ease-in-out infinite alternate; }
+    @keyframes drift1 { to { transform: translate(60px, 40px) scale(1.15); } }
+    @keyframes drift2 { to { transform: translate(-50px, -30px) scale(1.1); } }
+    @keyframes drift3 { to { transform: translate(-70px, 50px) scale(0.9); } }
+
+    .page { max-width: 960px; margin: 0 auto; padding: 60px 32px 70px; }
+
+    .back-link {
+        display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+        color: var(--text-dim); font-size: 13px; font-weight: 600; margin-bottom: 30px;
+    }
+    .back-link:hover { color: var(--text); }
+
+    .hub-header { text-align: center; margin-bottom: 44px; }
+    .hub-title {
+        font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 40px; letter-spacing: -1px;
+        background: var(--aurora-gradient); background-size: 200% auto; -webkit-background-clip: text;
+        background-clip: text; color: transparent; margin-bottom: 10px;
+    }
+    .hub-sub { color: var(--text-dim); font-size: 15px; }
+
+    .game-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;
+    }
+    .game-card {
+        display: flex; flex-direction: column; gap: 14px; text-decoration: none; color: inherit;
+        border: 1px solid var(--border); border-radius: 18px; padding: 28px 24px;
+        background: var(--panel); backdrop-filter: blur(16px);
+        transition: transform .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
+    }
+    .game-card:hover {
+        transform: translateY(-4px); border-color: rgba(167,139,250,0.45); background: var(--panel-hover);
+        box-shadow: 0 12px 30px rgba(34,211,238,0.12);
+    }
+    .game-icon {
+        width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+        font-size: 28px; background: var(--aurora-gradient);
+    }
+    .game-title { font-size: 17px; font-weight: 700; font-family: 'Poppins', sans-serif; }
+    .game-tagline { font-size: 13px; color: var(--text-dim); line-height: 1.5; flex-grow: 1; }
+    .game-play { font-size: 12.5px; font-weight: 700; color: var(--accent1); }
+
+    .coming-soon {
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+        border: 1px dashed var(--border); border-radius: 18px; padding: 28px 24px;
+        color: var(--text-faint); font-size: 13px; text-align: center;
+    }
+    .continue-panel {
+        display: none; align-items: center; justify-content: space-between; gap: 20px;
+        margin: 0 auto 28px; max-width: 760px; padding: 17px 20px;
+        border: 1px solid rgba(216,163,106,0.45); border-radius: 12px;
+        background: linear-gradient(110deg, rgba(216,163,106,0.15), rgba(255,255,255,0.04));
+    }
+    .continue-panel.visible { display: flex; }
+    .continue-copy { min-width: 0; }
+    .continue-label { color: var(--accent1); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; margin-bottom: 4px; }
+    .continue-title { color: var(--text); font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .continue-button { flex-shrink: 0; border: 0; border-radius: 8px; padding: 10px 16px; background: var(--accent1); color: #11131a; font-size: 12px; font-weight: 800; cursor: pointer; }
+    .continue-button:hover { filter: brightness(1.08); }
+    .game-card { position: relative; }
+    .game-status { color: var(--accent1); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+    @media (max-width: 560px) { .continue-panel { align-items: flex-start; flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="aurora"><span></span><span></span><span></span></div>
+<div class="page">
+    <a class="back-link" href="/">&larr; Back to AetherScan</a>
+    <div class="hub-header">
+        <div class="hub-title">Aether Games</div>
+        <div class="hub-sub">A little built-in arcade. Pick something to play.</div>
+    </div>
+    <div class="continue-panel" id="continuePanel">
+        <div class="continue-copy">
+            <div class="continue-label">Continue playing</div>
+            <div class="continue-title" id="continueTitle"></div>
+        </div>
+        <button class="continue-button" id="continueButton" type="button">Resume game</button>
+    </div>
+    <div class="game-grid">
+        {% for g in games %}
+            <a class="game-card" href="/games/{{ g.slug }}" data-game-slug="{{ g.slug }}" data-game-title="{{ g.title }}">
+                <div class="game-icon">{{ g.icon }}</div>
+                <div class="game-title">{{ g.title }}</div>
+                <div class="game-tagline">{{ g.tagline }}</div>
+                <div class="game-status" data-game-status>Play</div>
+                <div class="game-play">Open game &rarr;</div>
+            </a>
+        {% endfor %}
+        <div class="coming-soon">More games coming soon</div>
+    </div>
+</div>
+<script>
+    (function () {
+        var key = 'aetherscan-last-game';
+        var cards = Array.prototype.slice.call(document.querySelectorAll('[data-game-slug]'));
+        var bySlug = {};
+        cards.forEach(function (card) {
+            bySlug[card.getAttribute('data-game-slug')] = card;
+            card.addEventListener('click', function () {
+                localStorage.setItem(key, JSON.stringify({
+                    slug: card.getAttribute('data-game-slug'),
+                    title: card.getAttribute('data-game-title'),
+                    openedAt: Date.now()
+                }));
+            });
+        });
+
+        var saved = null;
+        try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { saved = null; }
+        var lastCard = saved && bySlug[saved.slug];
+        if (!lastCard) return;
+
+        document.getElementById('continuePanel').classList.add('visible');
+        document.getElementById('continueTitle').textContent = saved.title || 'Your last game';
+        document.getElementById('continueButton').addEventListener('click', function () {
+            window.location.href = '/games/' + encodeURIComponent(saved.slug);
+        });
+        lastCard.querySelector('[data-game-status]').textContent = 'Last played';
+    })();
+</script>
+</body>
+</html>

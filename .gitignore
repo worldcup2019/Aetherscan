@@ -1,0 +1,6 @@
+.env
+aetherscan_users.db
+__pycache__/
+venv/
+.venv/
+*.pyc

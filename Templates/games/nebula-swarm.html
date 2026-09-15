@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quantum Forge: Cosmic Harvest</title>
+<style>
+  :root{
+    --bg-void:#070a12;
+    --bg-panel:#0f1524;
+    --bg-panel-2:#141c30;
+    --line:#232d47;
+    --cyan:#4be8ff;
+    --cyan-dim:#1c6b7a;
+    --purple:#b07bff;
+    --purple-dim:#5a3f8f;
+    --gold:#ffcf5c;
+    --text:#e7ecf7;
+    --muted:#7d88a3;
+    --danger:#ff5c7a;
+    --font-display: 'Segoe UI Semibold', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'Consolas', 'SFMono-Regular', Menlo, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;height:100%;
+    background:
+      radial-gradient(ellipse at 20% -10%, rgba(176,123,255,0.12), transparent 55%),
+      radial-gradient(ellipse at 90% 10%, rgba(75,232,255,0.10), transparent 50%),
+      var(--bg-void);
+    color:var(--text);
+    font-family:var(--font-display);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--purple-dim);}
+
+  /* subtle starfield */
+  .stars{
+    position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.5;
+    background-image:
+      radial-gradient(1px 1px at 20px 30px, #ffffff 100%, transparent),
+      radial-gradient(1px 1px at 140px 80px, #ffffff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 90px 160px, #ffffff 100%, transparent),
+      radial-gradient(1px 1px at 220px 40px, #ffffff 100%, transparent),
+      radial-gradient(1px 1px at 300px 200px, #ffffff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 60px 220px, #ffffff 100%, transparent);
+    background-repeat:repeat;
+    background-size:340px 260px;
+    animation:drift 120s linear infinite;
+  }
+  @keyframes drift{ from{background-position:0 0;} to{background-position:-1000px 600px;} }
+
+  .app{
+    position:relative;z-index:1;
+    max-width:1280px;margin:0 auto;
+    padding:18px 22px 60px;
+    min-height:100%;
+  }
+
+  /* ---------- HEADER ---------- */
+  header{
+    display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+    gap:14px;
+    padding:16px 22px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:linear-gradient(180deg, rgba(20,28,48,0.9), rgba(15,21,36,0.9));
+    box-shadow:0 0 0 1px rgba(255,255,255,0.02) inset, 0 20px 40px -20px rgba(0,0,0,0.6);
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{
+    width:40px;height:40px;border-radius:10px;
+    background:conic-gradient(from 220deg, var(--cyan), var(--purple), var(--cyan));
+    display:flex;align-items:center;justify-content:center;
+    font-size:20px;
+    box-shadow:0 0 22px rgba(75,232,255,0.35);
+    flex:none;
+  }
+  .brand h1{
+    margin:0;font-size:19px;letter-spacing:0.02em;font-weight:700;
+    color:var(--text);
+    line-height:1.15;
+  }
+  .brand p{margin:2px 0 0;font-size:11.5px;color:var(--muted);letter-spacing:0.03em;}
+
+  .stat-row{display:flex;gap:10px;flex-wrap:wrap;}
+  .stat-chip{
+    display:flex;flex-direction:column;gap:2px;
+    padding:8px 16px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:var(--bg-panel);
+    min-width:118px;
+  }
+  .stat-chip .label{font-size:10.5px;color:var(--muted);letter-spacing:0.04em;}
+  .stat-chip .value{font-family:var(--font-mono);font-size:17px;font-weight:700;}
+  .stat-chip.shards .value{color:var(--cyan);}
+  .stat-chip.rate .value{color:var(--gold);}
+  .stat-chip.power .value{color:var(--purple);}
+
+  /* ---------- LAYOUT ---------- */
+  .board{
+    display:grid;
+    grid-template-columns:1fr 1.15fr;
+    gap:20px;
+    margin-top:20px;
+  }
+  @media (max-width:880px){ .board{grid-template-columns:1fr;} }
+
+  .panel{
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:linear-gradient(180deg, rgba(20,28,48,0.55), rgba(12,17,29,0.7));
+    padding:18px;
+  }
+
+  /* ---------- CORE (left) ---------- */
+  .core-panel{
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    gap:18px;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .core-panel .section-title{align-self:flex-start;}
+
+  .core-stage{
+    position:relative;
+    width:100%;
+    display:flex;align-items:center;justify-content:center;
+    padding:26px 0 10px;
+  }
+  .core-orb{
+    position:relative;
+    width:210px;height:210px;
+    border-radius:50%;
+    border:none;
+    cursor:pointer;
+    background:
+      radial-gradient(circle at 34% 30%, rgba(255,255,255,0.85), rgba(255,255,255,0) 40%),
+      radial-gradient(circle at 50% 50%, var(--cyan) 0%, var(--purple) 55%, #1a1330 100%);
+    box-shadow:
+      0 0 40px 6px rgba(75,232,255,0.45),
+      0 0 90px 20px rgba(176,123,255,0.25),
+      inset 0 0 30px rgba(255,255,255,0.25);
+    transition:transform 90ms ease-out, box-shadow 150ms ease-out;
+    display:flex;align-items:center;justify-content:center;
+    font-size:0;
+    outline:none;
+  }
+  .core-orb:hover{ box-shadow:0 0 50px 10px rgba(75,232,255,0.6), 0 0 110px 26px rgba(176,123,255,0.35), inset 0 0 30px rgba(255,255,255,0.3); }
+  .core-orb:active, .core-orb.pressed{ transform:scale(0.93); }
+  .core-orb:focus-visible{ box-shadow:0 0 0 3px var(--gold), 0 0 50px 10px rgba(75,232,255,0.6); }
+  .core-orb .ring{
+    position:absolute;inset:-14px;border-radius:50%;
+    border:2px solid rgba(75,232,255,0.35);
+    animation:spin 14s linear infinite;
+  }
+  .core-orb .ring2{
+    position:absolute;inset:-28px;border-radius:50%;
+    border:1.5px dashed rgba(176,123,255,0.3);
+    animation:spin 22s linear infinite reverse;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .core-glyph{font-size:56px;filter:drop-shadow(0 0 10px rgba(255,255,255,0.5));}
+
+  .float-pop{
+    position:absolute;
+    font-family:var(--font-mono);
+    font-weight:700;
+    color:var(--cyan);
+    text-shadow:0 0 8px rgba(75,232,255,0.7);
+    pointer-events:none;
+    animation:floatUp 900ms ease-out forwards;
+    white-space:nowrap;
+  }
+  @keyframes floatUp{
+    0%{ opacity:1; transform:translate(-50%,-50%) translateY(0); }
+    100%{ opacity:0; transform:translate(-50%,-50%) translateY(-90px); }
+  }
+
+  .click-info{font-size:13px;color:var(--muted);line-height:1.6;}
+  .click-info b{color:var(--text);}
+
+  .toast-wrap{
+    position:fixed;top:16px;right:16px;z-index:50;
+    display:flex;flex-direction:column;gap:8px;
+    max-width:290px;
+  }
+  .toast{
+    background:linear-gradient(135deg, rgba(176,123,255,0.18), rgba(75,232,255,0.12));
+    border:1px solid var(--cyan-dim);
+    border-radius:10px;
+    padding:10px 14px;
+    font-size:12.5px;
+    box-shadow:0 10px 24px -10px rgba(0,0,0,0.6);
+    animation:toastIn 240ms ease-out, toastOut 400ms ease-in 3.6s forwards;
+  }
+  .toast .t-title{font-weight:700;color:var(--gold);font-size:11.5px;letter-spacing:0.03em;margin-bottom:2px;}
+  @keyframes toastIn{ from{opacity:0; transform:translateX(30px);} to{opacity:1; transform:translateX(0);} }
+  @keyframes toastOut{ to{opacity:0; transform:translateX(30px);} }
+
+  /* ---------- SHOP (right) ---------- */
+  .section-title{
+    font-size:13px;font-weight:700;letter-spacing:0.03em;
+    color:var(--text);margin:0 0 12px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .section-title .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);}
+
+  .tabs{display:flex;gap:6px;margin-bottom:14px;}
+  .tab-btn{
+    flex:1;
+    padding:9px 10px;
+    background:var(--bg-panel);
+    border:1px solid var(--line);
+    color:var(--muted);
+    border-radius:9px;
+    cursor:pointer;
+    font-size:12.5px;
+    font-weight:600;
+    letter-spacing:0.02em;
+    transition:all 140ms ease;
+  }
+  .tab-btn.active{
+    color:var(--bg-void);
+    background:linear-gradient(135deg, var(--cyan), var(--purple));
+    border-color:transparent;
+  }
+  .tab-btn:not(.active):hover{ color:var(--text); border-color:var(--cyan-dim); }
+
+  .shop-list{
+    display:flex;flex-direction:column;gap:10px;
+    max-height:560px;
+    overflow-y:auto;
+    padding-right:4px;
+  }
+  .shop-list::-webkit-scrollbar{width:7px;}
+  .shop-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px;}
+
+  .item{
+    position:relative;
+    display:flex;align-items:center;gap:12px;
+    padding:12px 14px;
+    border:1px solid var(--line);
+    border-radius:11px;
+    background:var(--bg-panel);
+    cursor:pointer;
+    transition:transform 120ms ease, border-color 120ms ease, background 120ms ease;
+  }
+  .item:hover{ border-color:var(--cyan-dim); transform:translateY(-1px); }
+  .item.affordable{ border-color:rgba(75,232,255,0.35); }
+  .item.affordable:hover{ background:var(--bg-panel-2); }
+  .item.locked{ opacity:0.45; cursor:not-allowed; }
+  .item.locked:hover{ transform:none; border-color:var(--line); }
+  .item.purchased{
+    border-color:rgba(255,207,92,0.5);
+    background:linear-gradient(135deg, rgba(255,207,92,0.08), rgba(176,123,255,0.06));
+  }
+
+  .item-icon{
+    flex:none;width:42px;height:42px;border-radius:9px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:21px;
+    background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.12), rgba(0,0,0,0.2));
+    border:1px solid var(--line);
+  }
+  .item-body{flex:1;min-width:0;}
+  .item-title-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+  .item-name{font-size:13.5px;font-weight:700;color:var(--text);}
+  .item-count{font-family:var(--font-mono);font-size:12px;color:var(--purple);font-weight:700;}
+  .item-desc{font-size:11.3px;color:var(--muted);margin-top:2px;line-height:1.4;}
+  .item-meta{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:11.5px;}
+  .item-cost{font-family:var(--font-mono);color:var(--cyan);font-weight:700;}
+  .item-cost.cant-afford{color:var(--danger);}
+  .item-prod{color:var(--muted);font-family:var(--font-mono);}
+
+  .item-tooltip{
+    position:absolute;
+    left:50%;bottom:calc(100% + 8px);
+    transform:translateX(-50%);
+    background:#0b1120;
+    border:1px solid var(--cyan-dim);
+    color:var(--text);
+    padding:8px 11px;
+    border-radius:8px;
+    font-size:11px;
+    line-height:1.5;
+    width:230px;
+    box-shadow:0 12px 30px -10px rgba(0,0,0,0.7);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 120ms ease;
+    z-index:5;
+  }
+  .item:hover .item-tooltip{opacity:1;}
+
+  .empty-note{
+    font-size:12px;color:var(--muted);
+    text-align:center;padding:30px 10px;
+    border:1px dashed var(--line);
+    border-radius:10px;
+  }
+
+  footer{
+    margin-top:22px;text-align:center;font-size:11px;color:var(--muted);
+    letter-spacing:0.02em;
+  }
+  footer b{color:var(--cyan);}
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stars"></div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <div class="brand-mark">⚛</div>
+      <div>
+        <h1>Quantum Forge: Cosmic Harvest</h1>
+        <p>Harvest &middot; Automate &middot; Ascend the energy lattice</p>
+      </div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-chip shards">
+        <span class="label">ENERGY SHARDS</span>
+        <span class="value" id="statShards">0</span>
+      </div>
+      <div class="stat-chip rate">
+        <span class="label">SHARDS / SEC</span>
+        <span class="value" id="statRate">0.0</span>
+      </div>
+      <div class="stat-chip power">
+        <span class="label">CLICK POWER</span>
+        <span class="value" id="statClick">1</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="board">
+
+    <!-- LEFT: CLICKER -->
+    <div class="panel core-panel">
+      <div class="section-title"><span class="dot"></span>QUANTUM CORE</div>
+      <div class="core-stage">
+        <button class="core-orb" id="coreOrb" aria-label="Harvest energy shard">
+          <div class="ring"></div>
+          <div class="ring2"></div>
+          <div class="core-glyph">⚡</div>
+        </button>
+      </div>
+      <div class="click-info">
+        Every tap channels raw quantum energy into <b>Energy Shards</b>.<br>
+        Build automated machinery on the right to harvest even while you're away.
+      </div>
+    </div>
+
+    <!-- RIGHT: SHOP -->
+    <div class="panel">
+      <div class="section-title"><span class="dot"></span>FORGE SYSTEMS</div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="generators">Generators</button>
+        <button class="tab-btn" data-tab="upgrades">Upgrades</button>
+      </div>
+      <div class="shop-list" id="shopList"></div>
+    </div>
+
+  </div>
+
+  <footer>Progress lives only in this browser tab &mdash; refreshing the page starts a <b>new run</b>.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============ CONFIG ============ */
+
+  const GENERATORS = [
+    { id:'nano',    name:'Nanobot Swarm',      icon:'🤖', baseCost:15,        baseProd:0.1,   desc:'Microscopic drones nibble stray energy from the vacuum.' },
+    { id:'solar',   name:'Solar Collector',    icon:'☀️', baseCost:100,       baseProd:1,     desc:'Panels tuned to harvest photons from any nearby star.' },
+    { id:'plasma',  name:'Plasma Reactor',     icon:'🔥', baseCost:1100,      baseProd:8,     desc:'Superheated plasma loops convert matter into raw power.' },
+    { id:'fusion',  name:'Fusion Array',       icon:'🌀', baseCost:12000,     baseProd:47,    desc:'A lattice of fusion cores fused directly to the grid.' },
+    { id:'dyson',   name:'Dyson Sphere',       icon:'🪐', baseCost:130000,    baseProd:260,   desc:'A shell encasing a star, capturing its entire output.' },
+    { id:'sing',    name:'Singularity Engine', icon:'🕳️', baseCost:1400000,   baseProd:1400,  desc:'Harnesses a controlled micro black hole for output beyond stars.' }
+  ];
+  const COST_MULT = 1.15;
+
+  const UPGRADES = [
+    { id:'u_click2',   name:'Reinforced Gauntlets',   icon:'🧤', cost:100,       kind:'click', mult:2,   req:null,
+      desc:'Doubles the energy harvested per manual click.' },
+    { id:'u_nano2',    name:'Overclocked Nanobots',   icon:'⚙️', cost:500,       kind:'gen',  gen:'nano',  mult:2, req:{gen:'nano', count:5},
+      desc:'Doubles Nanobot Swarm output. Requires 5 Nanobot Swarms.' },
+    { id:'u_click3',   name:'Quantum Resonance',      icon:'✨', cost:2000,      kind:'click', mult:3,   req:null,
+      desc:'Attunes your hand to the core, tripling click power.' },
+    { id:'u_solar2',   name:'Solar Flare Amplifiers', icon:'🔆', cost:3000,      kind:'gen',  gen:'solar', mult:2, req:{gen:'solar', count:10},
+      desc:'Doubles Solar Collector output. Requires 10 Solar Collectors.' },
+    { id:'u_plasma2',  name:'Plasma Injectors',       icon:'💠', cost:25000,     kind:'gen',  gen:'plasma', mult:2, req:{gen:'plasma', count:10},
+      desc:'Doubles Plasma Reactor output. Requires 10 Plasma Reactors.' },
+    { id:'u_global25', name:'Global Automation Sync', icon:'🌐', cost:75000,     kind:'globalgen', mult:1.25, req:null,
+      desc:'Synchronizes every automated system for +25% total output.' },
+    { id:'u_fusion2',  name:'Fusion Catalyst',        icon:'🧪', cost:200000,    kind:'gen',  gen:'fusion', mult:2, req:{gen:'fusion', count:10},
+      desc:'Doubles Fusion Array output. Requires 10 Fusion Arrays.' },
+    { id:'u_click10',  name:'Click Frenzy Core',      icon:'🌟', cost:500000,    kind:'click', mult:5,   req:{shardsEarned:400000},
+      desc:'A volatile overcharge multiplying click power by 5x.' },
+    { id:'u_dyson2',   name:'Dyson Optimization',     icon:'🔷', cost:2000000,   kind:'gen',  gen:'dyson', mult:2, req:{gen:'dyson', count:10},
+      desc:'Doubles Dyson Sphere output. Requires 10 Dyson Spheres.' },
+    { id:'u_global25b',name:'Lattice Harmonics',      icon:'🕸️', cost:5000000,   kind:'globalgen', mult:1.25, req:null,
+      desc:'Further harmonizes the grid for another +25% total output.' },
+    { id:'u_sing2',    name:'Singularity Stabilizers',icon:'🌌', cost:20000000,  kind:'gen',  gen:'sing', mult:2, req:{gen:'sing', count:10},
+      desc:'Doubles Singularity Engine output. Requires 10 Singularity Engines.' },
+    { id:'u_clickAll', name:'Harvester Ascendance',   icon:'👑', cost:50000000,  kind:'click', mult:4,   req:{shardsEarned:30000000},
+      desc:'Ascend your harvesting technique, quadrupling click power.' }
+  ];
+
+  const TICKS_PER_SEC = 15;
+  const TICK_MS = 1000 / TICKS_PER_SEC;
+
+  /* ============ STATE ============ */
+
+  const state = {
+    shards:0,
+    totalEarned:0,
+    totalClicks:0,
+    clickBase:1,
+    clickMult:1,
+    globalGenMult:1,
+    gens:{},          // id -> count
+    genMult:{},       // id -> multiplier from upgrades
+    ownedUpgrades:{}, // id -> true
+  };
+  GENERATORS.forEach(g=>{ state.gens[g.id]=0; state.genMult[g.id]=1; });
+
+  let activeTab = 'generators';
+  const milestonesHit = new Set();
+
+  /* ============ HELPERS ============ */
+
+  function formatNumber(n){
+    if (n < 1000) {
+      return (Math.floor(n*10)/10).toString();
+    }
+    const units = ['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc'];
+    let tier = Math.floor(Math.log10(n) / 3);
+    tier = Math.min(tier, units.length - 1);
+    const scaled = n / Math.pow(1000, tier);
+    const digits = scaled < 10 ? 2 : (scaled < 100 ? 1 : 0);
+    return scaled.toFixed(digits) + units[tier];
+  }
+
+  function genCost(genDef, owned){
+    return genDef.baseCost * Math.pow(COST_MULT, owned);
+  }
+
+  function genProduction(genDef){
+    return genDef.baseProd * state.gens[genDef.id] * state.genMult[genDef.id] * state.globalGenMult;
+  }
+
+  function totalRate(){
+    return GENERATORS.reduce((sum,g)=> sum + genProduction(g), 0);
+  }
+
+  function clickValue(){
+    return state.clickBase * state.clickMult;
+  }
+
+  function upgradeUnlocked(u){
+    if (state.ownedUpgrades[u.id]) return false;
+    if (!u.req) return true;
+    if (u.req.gen) return state.gens[u.req.gen] >= u.req.count;
+    if (u.req.shardsEarned) return state.totalEarned >= u.req.shardsEarned * 0.0 || true; // visible always, purchasability gated below
+    return true;
+  }
+
+  function upgradeVisible(u){
+    // Show upgrade once reasonably close, so the shop isn't just a wall of locked cards.
+    if (state.ownedUpgrades[u.id]) return true;
+    if (u.req && u.req.gen) return true; // always show gen-locked ones with a clear requirement
+    return true;
+  }
+
+  function upgradeMeetsRequirement(u){
+    if (!u.req) return true;
+    if (u.req.gen) return state.gens[u.req.gen] >= u.req.count;
+    if (u.req.shardsEarned) return state.totalEarned >= u.req.shardsEarned;
+    return true;
+  }
+
+  /* ============ RENDER ============ */
+
+  const el = {
+    shards: document.getElementById('statShards'),
+    rate: document.getElementById('statRate'),
+    click: document.getElementById('statClick'),
+    shopList: document.getElementById('shopList'),
+    coreOrb: document.getElementById('coreOrb'),
+    toastWrap: document.getElementById('toastWrap'),
+  };
+
+  function renderStats(){
+    el.shards.textContent = formatNumber(state.shards);
+    el.rate.textContent = formatNumber(totalRate());
+    el.click.textContent = formatNumber(clickValue());
+  }
+
+  function renderShop(){
+    el.shopList.innerHTML = '';
+
+    if (activeTab === 'generators'){
+      GENERATORS.forEach(g=>{
+        const owned = state.gens[g.id];
+        const cost = genCost(g, owned);
+        const affordable = state.shards >= cost;
+        const prodEach = g.baseProd * state.genMult[g.id] * state.globalGenMult;
+
+        const item = document.createElement('div');
+        item.className = 'item' + (affordable ? ' affordable' : '');
+        item.innerHTML = `
+          <div class="item-icon">${g.icon}</div>
+          <div class="item-body">
+            <div class="item-title-row">
+              <span class="item-name">${g.name}</span>
+              <span class="item-count">x${owned}</span>
+            </div>
+            <div class="item-desc">${g.desc}</div>
+            <div class="item-meta">
+              <span class="item-cost ${affordable ? '' : 'cant-afford'}">${formatNumber(cost)} ⬡</span>
+              <span class="item-prod">${formatNumber(prodEach)}/s each</span>
+            </div>
+          </div>
+          <div class="item-tooltip">Producing <b>${formatNumber(genProduction(g))}/s</b> total.<br>Next purchase cost rises ${Math.round((COST_MULT-1)*100)}%.</div>
+        `;
+        item.addEventListener('click', ()=> buyGenerator(g.id));
+        el.shopList.appendChild(item);
+      });
+    } else {
+      const visibleUpgrades = UPGRADES.filter(upgradeVisible);
+      if (visibleUpgrades.length === 0){
+        el.shopList.innerHTML = '<div class="empty-note">No upgrades discovered yet. Keep harvesting!</div>';
+        return;
+      }
+      visibleUpgrades.forEach(u=>{
+        const owned = !!state.ownedUpgrades[u.id];
+        const meetsReq = upgradeMeetsRequirement(u);
+        const affordable = state.shards >= u.cost && meetsReq && !owned;
+
+        const item = document.createElement('div');
+        item.className = 'item' + (owned ? ' purchased' : (affordable ? ' affordable' : (meetsReq ? '' : ' locked')));
+
+        let reqLine = '';
+        if (!owned && !meetsReq){
+          if (u.req.gen){
+            const gName = GENERATORS.find(g=>g.id===u.req.gen).name;
+            reqLine = `Requires ${u.req.count}x ${gName} (have ${state.gens[u.req.gen]})`;
+          } else if (u.req.shardsEarned){
+            reqLine = `Requires ${formatNumber(u.req.shardsEarned)} total shards earned`;
+          }
+        }
+
+        item.innerHTML = `
+          <div class="item-icon">${u.icon}</div>
+          <div class="item-body">
+            <div class="item-title-row">
+              <span class="item-name">${u.name}</span>
+              <span class="item-count">${owned ? 'OWNED' : ''}</span>
+            </div>
+            <div class="item-desc">${u.desc}</div>
+            <div class="item-meta">
+              <span class="item-cost ${affordable ? '' : 'cant-afford'}">${owned ? '' : formatNumber(u.cost) + ' ⬡'}</span>
+              <span class="item-prod">${reqLine}</span>
+            </div>
+          </div>
+          <div class="item-tooltip">${u.desc}</div>
+        `;
+        if (!owned){
+          item.addEventListener('click', ()=> buyUpgrade(u.id));
+        }
+        el.shopList.appendChild(item);
+      });
+    }
+  }
+
+  function renderAll(){
+    renderStats();
+    renderShop();
+  }
+
+  /* ============ ACTIONS ============ */
+
+  function buyGenerator(id){
+    const g = GENERATORS.find(x=>x.id===id);
+    const cost = genCost(g, state.gens[id]);
+    if (state.shards < cost) return;
+    state.shards -= cost;
+    state.gens[id] += 1;
+    renderAll();
+  }
+
+  function buyUpgrade(id){
+    const u = UPGRADES.find(x=>x.id===id);
+    if (state.ownedUpgrades[id]) return;
+    if (!upgradeMeetsRequirement(u)) return;
+    if (state.shards < u.cost) return;
+
+    state.shards -= u.cost;
+    state.ownedUpgrades[id] = true;
+
+    if (u.kind === 'click'){
+      state.clickMult *= u.mult;
+    } else if (u.kind === 'gen'){
+      state.genMult[u.gen] *= u.mult;
+    } else if (u.kind === 'globalgen'){
+      state.globalGenMult *= u.mult;
+    }
+
+    showToast('SYSTEM ONLINE', u.name + ' acquired!');
+    renderAll();
+  }
+
+  function harvestClick(x, y){
+    const gained = clickValue();
+    state.shards += gained;
+    state.totalEarned += gained;
+    state.totalClicks += 1;
+    spawnFloatPop(gained, x, y);
+    checkMilestones();
+    renderStats();
+    // shop affordability highlighting can change on every click
+    renderShop();
+  }
+
+  /* ============ FX ============ */
+
+  function spawnFloatPop(amount, x, y){
+    const pop = document.createElement('div');
+    pop.className = 'float-pop';
+    pop.textContent = '+' + formatNumber(amount);
+    pop.style.left = x + 'px';
+    pop.style.top = y + 'px';
+    pop.style.fontSize = (14 + Math.min(10, Math.log10(amount+1)*2)) + 'px';
+    document.body.appendChild(pop);
+    setTimeout(()=> pop.remove(), 950);
+  }
+
+  function showToast(title, msg){
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.innerHTML = `<div class="t-title">${title}</div><div>${msg}</div>`;
+    el.toastWrap.appendChild(t);
+    setTimeout(()=> t.remove(), 4100);
+  }
+
+  const MILESTONES = [
+    { at:100,      msg:'100 shards harvested. The Forge stirs.' },
+    { at:10000,    msg:'10,000 shards! Automation is paying off.' },
+    { at:1000000,  msg:'1 million shards harvested. You are becoming a cosmic force.' },
+    { at:100000000,msg:'100 million shards! The lattice bends to your will.' },
+  ];
+  function checkMilestones(){
+    MILESTONES.forEach(m=>{
+      if (!milestonesHit.has(m.at) && state.totalEarned >= m.at){
+        milestonesHit.add(m.at);
+        showToast('MILESTONE', m.msg);
+      }
+    });
+  }
+
+  /* ============ EVENTS ============ */
+
+  el.coreOrb.addEventListener('click', (e)=>{
+    const rect = el.coreOrb.getBoundingClientRect();
+    const x = rect.left + rect.width/2 + (Math.random()*40-20);
+    const y = rect.top + rect.height*0.25;
+    harvestClick(x, y);
+    el.coreOrb.classList.add('pressed');
+    setTimeout(()=> el.coreOrb.classList.remove('pressed'), 100);
+  });
+
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      activeTab = btn.dataset.tab;
+      renderShop();
+    });
+  });
+
+  /* ============ GAME LOOP ============ */
+
+  let lastTime = performance.now();
+  function tick(){
+    const now = performance.now();
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
+
+    const gained = totalRate() * dt;
+    if (gained > 0){
+      state.shards += gained;
+      state.totalEarned += gained;
+      checkMilestones();
+    }
+    renderStats();
+  }
+  setInterval(tick, TICK_MS);
+
+  // Re-render shop periodically too (affordability / unlock states change passively over time)
+  setInterval(renderShop, 500);
+
+  renderAll();
+})();
+</script>
+
+</body>
+</html>
