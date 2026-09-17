@@ -181,4 +181,5 @@ Bug reports, ideas, and improvements are welcome. Before opening an issue, check
 
 ## License
 
-AetherScan is available under the [MIT License](LICENSE). 
+AetherScan is free and open-source software licensed under the
+[GNU General Public License v3.0](LICENSE).
