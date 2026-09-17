@@ -181,4 +181,4 @@ Bug reports, ideas, and improvements are welcome. Before opening an issue, check
 
 ## License
 
-No license is currently specified. Until a license is added, the repository should not be assumed to permit redistribution or reuse. Open an issue if you would like to discuss adding a license.
+AetherScan is available under the [MIT License](LICENSE). 
