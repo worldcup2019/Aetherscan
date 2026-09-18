@@ -1,30 +1,31 @@
 # AetherScan
 
-AetherScan is a personal, privacy-focused search engine and desktop browser built with Python, Flask, and PyQt6. Search the web, images, videos, news, sports, maps, and movies in one app. It also includes AI features, bookmarks, browsing history, tab groups, downloads, and seven built-in games.
+AetherScan is a privacy-focused personal search engine and desktop browser built with Python, Flask, and PyQt6. It brings together web search, media search, bookmarks, browser tabs, downloads, AI features, and built-in games in a single desktop app.
 
-> **Privacy note:** AetherScan does not depend on one search provider, but searches may be sent to services such as DuckDuckGo, Wikipedia, Openverse, Reddit, Stack Overflow, Hacker News, and other enabled APIs. Review each service's terms and privacy policies before using the app.
+Search the web, images, videos, news, sports, maps, movies, and more in one app without being locked into a single provider.
 
 ## Features
 
-- Web search using several public sources
+- Web search using multiple public sources
 - Image, video, news, sports, map, and movie search
-- Optional AI overviews and AI chat
-- Optional TMDb movie information and watch-provider links
+- Optional AI overview and AI chat
+- Optional TMDb movie metadata and watch-provider links
 - Desktop browser window with tabs
 - Bookmarks, history, downloads, tab groups, and session restore
-- Seven built-in games at `/games`
-- Works with no API keys for the core web search features
+- Built-in games at `/games`
+- Core search features work without API keys
+- Privacy-focused design
 
 ## Requirements
 
 - Windows, macOS, or Linux
 - Python 3.10 or newer recommended
+- Git or a downloaded copy of the repository
 - Internet connection
-- Git, or a downloaded copy of this repository
 
-## Quick setup on Windows
+## Quick Start
 
-Open PowerShell in the folder where you want to install AetherScan and run:
+### Windows (PowerShell)
 
 ```powershell
 git clone https://github.com/worldcup2019/Aetherscan.git
@@ -37,38 +38,16 @@ py -m pip install --upgrade pip
 py -m pip install -r requirements.txt python-dotenv
 
 Copy-Item .env.example.txt .env
+# Edit .env and set at least:
+# SECRET_KEY=change-this-to-a-long-random-string
+
 py app.py
-```
+If the desktop window does not appear, open this in a browser:
 
-AetherScan normally opens in its desktop window. If it does not, open this address in a browser:
-
-```text
+Text
 http://127.0.0.1:5006
-```
-
-### If PowerShell blocks activation
-
-You can either run the activation command with Command Prompt instead:
-
-```bat
-.venv\Scripts\activate.bat
-```
-
-Or allow locally created scripts for your user account in PowerShell:
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-Then activate the environment again:
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-## Setup on macOS or Linux
-
-```bash
+macOS / Linux
+bash
 git clone https://github.com/worldcup2019/Aetherscan.git
 cd Aetherscan
 
@@ -79,107 +58,130 @@ python3 -m pip install --upgrade pip
 python3 -m pip install -r requirements.txt python-dotenv
 
 cp .env.example.txt .env
+# Edit .env and set at least:
+# SECRET_KEY=change-this-to-a-long-random-string
+
 python3 app.py
-```
+If the desktop window does not appear, open this in a browser:
 
-Open `http://127.0.0.1:5006` if the desktop window does not appear.
+Text
+http://127.0.0.1:5006
+If PowerShell blocks activation
+PowerShell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+.venv\Scripts\Activate.ps1
+Environment Variables
+The project includes a sample environment file: .env.example.txt.
 
-## API keys
+Copy it to .env and add only the keys you want to use.
 
-API keys are optional. Core web search works without them, but keys enable additional features. Copy `.env.example.txt` to `.env` and add only the keys you want to use.
+env
+# Required for real sessions/logins in production
+SECRET_KEY=change-this-to-a-long-random-string
 
-```dotenv
-# Recommended for local development
-SECRET_KEY=replace-this-with-a-long-random-string
-
-# Choose an AI provider for AI Overview and AI Chat
+# AI Overview + AI Chat (optional)
 GEMINI_API_KEY=
-GROQ_API_KEY=
+GEMINI_MODEL=gemini-3.8-flash
 ANTHROPIC_API_KEY=
+ANTHROPIC_MODEL=claude-sonnet-5
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.3-70b-versatile
 
-# Movie search
+# Movies tab
 TMDB_API_KEY=
 
-# 3D maps
+# Maps tab (3D globe)
 CESIUM_ION_TOKEN=
-```
 
-Other optional variables in `.env.example.txt` enable additional search, image, video, and sports sources.
+# Optional extra search sources
+BRAVE_API_KEY=
+SERPAPI_API_KEY=
+BING_API_KEY=
+GOOGLE_CSE_API_KEY=
+GOOGLE_CSE_ID=
+YOUTUBE_API_KEY=
 
-### Important security rules
+# Optional image search
+OPENVERSE_CLIENT_ID=
+OPENVERSE_CLIENT_SECRET=
 
-- Never commit `.env` to GitHub.
-- Never post API keys in screenshots, issues, or chat.
-- Use `.env.example.txt` for sharing setting names without secret values.
-- If a key is exposed, revoke it and create a replacement immediately.
-- Use a strong random `SECRET_KEY` for any non-local deployment.
+# Optional sports data
+THESPORTSDB_KEY=123
+Running the App Again Later
+Whenever you open a new terminal:
 
-Signed-in users can also add supported personal keys from the AetherScan Settings page. Keys entered there are stored in the local SQLite accounts database, so only use this feature on a computer you trust.
-
-## Running the application
-
-Every time you open a new terminal:
-
-```powershell
+Windows
+PowerShell
 cd Aetherscan
 .venv\Scripts\Activate.ps1
 py app.py
-```
+macOS / Linux
+bash
+cd Aetherscan
+source .venv/bin/activate
+python3 app.py
+To stop the app, press Ctrl+C in the terminal.
 
-To stop the application, return to the terminal and press `Ctrl+C`.
+Built-in Games
+Open the games page here:
 
-## Games
-
-Open the built-in arcade at:
-
-```text
+Text
 http://127.0.0.1:5006/games
-```
+The app includes several built-in games such as:
 
-The current games include Quantum Forge, Nebula Swarm, Siege Forge, Basketball Free Throw Pro, Moto Tracks, Word Guess Game, and FC 26: Ultra Manager Pro.
+Quantum Forge
+Nebula Swarm
+Siege Forge
+Basketball Free Throw Pro
+Moto Tracks
+Word Guess Game
+FC 26: Ultra Manager Pro
+Troubleshooting
+Missing module error
+Make sure the virtual environment is active, then reinstall dependencies:
 
-## Troubleshooting
+bash
+python3 -m pip install -r requirements.txt python-dotenv
+or on Windows:
 
-### `No module named ...`
-
-Make sure the virtual environment is activated, then reinstall the dependencies:
-
-```powershell
+PowerShell
 py -m pip install -r requirements.txt python-dotenv
-```
+Desktop window does not open
+AetherScan can still run as a web app. Open:
 
-### The desktop window does not open
-
-AetherScan can still run as a Flask web app. Open:
-
-```text
+Text
 http://127.0.0.1:5006
-```
+AI features unavailable
+Add one of the following keys to .env and restart the app:
 
-### Movie search says it needs an API key
+GEMINI_API_KEY
+GROQ_API_KEY
+ANTHROPIC_API_KEY
+Movie search says it needs an API key
+Add a TMDB_API_KEY to .env and restart the app.
 
-Add a `TMDB_API_KEY` in `.env`, save the file, and restart AetherScan. Movie search requires TMDb; ordinary web search does not.
-
-### AI features are unavailable
-
-Add `GEMINI_API_KEY`, `GROQ_API_KEY`, or another supported AI key to `.env`, then restart the app. AI features are optional.
-
-## Project structure
-
-```text
+Project Structure
+Text
 Aetherscan/
-├── app.py                 # Main Flask and desktop application
-├── requirements.txt       # Python dependencies
-├── .env.example.txt       # Example configuration file
-├── Templates/             # HTML templates and built-in games
-└── .gitignore
-```
+├── app.py
+├── requirements.txt
+├── .env.example.txt
+├── README.md
+├── LICENSE
+├── Templates/
+├── .gitignore
+└── other project files
+Security Notes
+Never commit .env to GitHub
+Never share API keys in screenshots, issues, or support chats
+Use .env.example.txt to document config names without exposing secrets
+If a key is exposed, revoke it immediately and create a replacement
+License
+This project is licensed under the GNU General Public License v3.0.
 
-## Contributing
+See LICENSE for details.
 
-Bug reports, ideas, and improvements are welcome. Before opening an issue, check whether it has already been reported and include your operating system, Python version, command used, and the complete error message. Do not include API keys or other secrets.
+Contributing
+Bug reports, feature requests, and improvements are welcome. Before opening an issue, please check whether it has already been reported and include your operating system, Python version, and the command you used.
 
-## License
-
-AetherScan is free and open-source software licensed under the
-[GNU General Public License v3.0](LICENSE).
+AetherScan is a personal, privacy-focused search engine and desktop browser built with Python, Flask, and PyQt6.
