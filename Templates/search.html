@@ -265,6 +265,82 @@
         .result-title:hover { color: var(--accent2); text-decoration: underline; }
         .result-snippet { font-size: 14px; color: var(--text-dim); line-height: 1.55; }
 
+        /* ---------- SHOPPING RESULTS ---------- */
+        .shopping-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+            gap: 16px;
+        }
+        .shopping-card {
+            display: flex;
+            flex-direction: column;
+            min-height: 190px;
+            padding: 17px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--panel);
+            backdrop-filter: blur(16px);
+            color: inherit;
+            text-decoration: none;
+            transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+        }
+        .shopping-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--glow);
+            border-color: rgba(167,139,250,0.4);
+        }
+        .shopping-card-top {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            min-height: 24px;
+        }
+        .shopping-favicon {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            object-fit: contain;
+        }
+        .shopping-domain {
+            color: var(--text-faint);
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .shopping-info {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+        .shopping-title {
+            font-size: 16px;
+            line-height: 1.4;
+            font-weight: 650;
+            margin-bottom: 8px;
+        }
+        .shopping-snippet {
+            color: var(--text-dim);
+            font-size: 13px;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .shopping-price {
+            margin-top: 12px;
+            font-size: 17px;
+            font-weight: 750;
+        }
+        .shopping-open {
+            margin-top: auto;
+            padding-top: 14px;
+            font-size: 12px;
+            color: var(--text-faint);
+        }
+
         .image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
         .image-box { width: 100%; height: 160px; object-fit: cover; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0,0,0,0.3); background: var(--panel); }
 
@@ -569,7 +645,42 @@
                 <input type="hidden" name="mode" value="{{ mode }}">
                 {% if site_filter %}<input type="hidden" name="site" value="{{ site_filter }}">{% endif %}
                 {% if sort and sort != 'relevance' %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
-                {% if mode == 'sports' %}
+                {% if mode == 'shopping' %}
+        {% if query %}
+            {% if shopping_results %}
+                <div class="section-title">Shopping <span class="count-badge">{{ shopping_results|length }}</span></div>
+                <div class="shopping-grid">
+                    {% for item in shopping_results %}
+                        <a class="shopping-card" href="{{ item.url }}" target="_blank" rel="noopener noreferrer">
+                            <div class="shopping-card-top">
+                                {% if item.favicon %}
+                                    <img class="shopping-favicon" src="{{ item.favicon }}" alt="" loading="lazy"
+                                         onerror="this.style.display='none'">
+                                {% endif %}
+                                <span class="shopping-domain">{{ item.domain or item.source }}</span>
+                            </div>
+                            <div class="shopping-info">
+                                <div class="shopping-title">{{ item.title }}</div>
+                                {% if item.snippet %}
+                                    <div class="shopping-snippet">{{ item.snippet }}</div>
+                                {% endif %}
+                                {% if item.price %}
+                                    <div class="shopping-price">{{ item.price }}</div>
+                                {% endif %}
+                                <span class="shopping-open">View product →</span>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-note">No shopping results found. Try a product name, brand, or model.</div>
+            {% endif %}
+        {% else %}
+            <div class="empty-note">Search for a product to shop.</div>
+        {% endif %}
+    {% endif %}
+
+    {% if mode == 'sports' %}
                     <select class="league-select" name="league" onchange="this.form.submit()">
                         {% for key, info in leagues.items() %}
                             <option value="{{ key }}" {% if key == league %}selected{% endif %}>{{ info[2] }}</option>
@@ -580,7 +691,7 @@
                     <div class="search-box">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         <input type="text" name="q" id="searchInput" autocomplete="off"
-                               placeholder="{% if mode == 'sports' %}Optional: search one team, e.g. Arsenal{% elif mode == 'maps' %}Search a place, e.g. Eiffel Tower or coffee shops in Auckland{% elif mode == 'movies' %}Search for a movie, e.g. Dune Part Two{% else %}Search Wikipedia + images...{% endif %}"
+                               placeholder="{% if mode == 'sports' %}Optional: search one team, e.g. Arsenal{% elif mode == 'maps' %}Search a place, e.g. Eiffel Tower or coffee shops in Auckland{% elif mode == 'movies' %}Search for a movie, e.g. Dune Part Two{% elif mode == 'shopping' %}Search for a product, e.g. wireless headphones{% else %}Search Wikipedia + images...{% endif %}"
                                value="{{ query }}" {% if mode != 'sports' %}required{% endif %}>
                            {% if query %}<button type="button" class="clear-search" id="clearSearch" title="Clear search" aria-label="Clear search">&times;</button>{% endif %}
                     </div>
@@ -624,6 +735,7 @@
             <a class="tab-link {% if mode == 'news' %}active{% endif %}" href="/?q={{ query|urlencode }}&mode=news">News</a>
             <a class="tab-link {% if mode == 'chat' %}active{% endif %}" href="/?mode=chat">AI Chat</a>
             <a class="tab-link {% if mode == 'movies' %}active{% endif %}" href="/?q={{ query|urlencode }}&mode=movies">Movies</a>
+            <a class="tab-link {% if mode == 'shopping' %}active{% endif %}" href="/?q={{ query|urlencode }}&mode=shopping">🛒 Shopping</a>
             <a class="tab-link {% if mode == 'sports' %}active{% endif %}" href="/?mode=sports&league={{ league }}">Sports</a>
             <a class="tab-link {% if mode == 'maps' %}active{% endif %}" href="/?q={{ query|urlencode }}&mode=maps">Maps</a>
         </div>

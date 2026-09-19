@@ -359,39 +359,90 @@ def _unwrap_ddg_redirect(href):
 
 
 def _duckduckgo_results(query, limit=14):
-    res = requests.get(
+    """Fetch general web results from DuckDuckGo HTML, with a Lite fallback."""
+    urls = [
         "https://html.duckduckgo.com/html/",
-        params={"q": query},
-        headers={
-            **HEADERS,
-            "User-Agent": ESPN_HEADERS["User-Agent"],
-            "Referer": "https://duckduckgo.com/",
-        },
-        timeout=8,
-    )
-    res.raise_for_status()
-    soup = BeautifulSoup(res.text, "html.parser")
+        "https://lite.duckduckgo.com/lite/",
+    ]
+    last_error = None
+    for endpoint in urls:
+        try:
+            res = requests.get(
+                endpoint,
+                params={"q": query},
+                headers={**HEADERS, "User-Agent": ESPN_HEADERS["User-Agent"]},
+                timeout=10,
+            )
+            res.raise_for_status()
+            soup = BeautifulSoup(res.text, "html.parser")
+            results = []
+            # Normal DDG HTML layout.
+            for row in soup.select("div.result"):
+                link_el = row.select_one("a.result__a")
+                if not link_el:
+                    continue
+                url = _unwrap_ddg_redirect(link_el.get("href", ""))
+                title = link_el.get_text(" ", strip=True)
+                snippet_el = row.select_one(".result__snippet")
+                snippet = snippet_el.get_text(" ", strip=True) if snippet_el else ""
+                if title and url.startswith("http"):
+                    results.append({"title": title, "url": url, "snippet": snippet, "source": urlparse(url).netloc})
+                if len(results) >= limit:
+                    break
+            # Lite layout uses result-link/result-snippet classes.
+            if not results:
+                for link_el in soup.select("a.result-link"):
+                    url = _unwrap_ddg_redirect(link_el.get("href", ""))
+                    title = link_el.get_text(" ", strip=True)
+                    if not title or not url.startswith("http"):
+                        continue
+                    parent = link_el.parent
+                    snippet = ""
+                    if parent:
+                        sn = parent.find_next(class_=re.compile(r"result-snippet"))
+                        if sn:
+                            snippet = sn.get_text(" ", strip=True)
+                    results.append({"title": title, "url": url, "snippet": snippet, "source": urlparse(url).netloc})
+                    if len(results) >= limit:
+                        break
+            if results:
+                return results
+            last_error = RuntimeError(f"{endpoint} returned no parseable results")
+        except Exception as e:
+            last_error = e
+    if last_error:
+        raise last_error
+    return []
 
-    results = []
-    for row in soup.select("div.result"):
-        link_el = row.select_one("a.result__a")
-        if not link_el:
-            continue
-        url = _unwrap_ddg_redirect(link_el.get("href", ""))
-        title = link_el.get_text(strip=True)
-        if not title or not url:
-            continue
-        snippet_el = row.select_one(".result__snippet")
-        snippet = snippet_el.get_text(strip=True) if snippet_el else ""
-        domain = url.split("/")[2] if "//" in url else "DuckDuckGo"
-        results.append({"title": title, "url": url, "snippet": snippet, "source": domain})
-        if len(results) >= limit:
-            break
 
-    if not results and "did not match any documents" not in res.text.lower():
-        raise RuntimeError("DuckDuckGo returned an unexpected page (likely a bot-check challenge) -- no results parsed")
-
-    return results
+def _yahoo_web_results(query, limit=10):
+    """Independent general-web fallback when other HTML search pages block scraping."""
+    try:
+        res = requests.get(
+            "https://search.yahoo.com/search",
+            params={"p": query, "n": limit},
+            headers={**HEADERS, "User-Agent": ESPN_HEADERS["User-Agent"]},
+            timeout=10,
+        )
+        res.raise_for_status()
+        soup = BeautifulSoup(res.text, "html.parser")
+        results = []
+        for item in soup.select("div#web ol.searchCenterMiddle li, div.dd.algo"):
+            link = item.select_one("h3 a, a.ac-algo")
+            if not link:
+                continue
+            url = link.get("href", "")
+            title = link.get_text(" ", strip=True)
+            snippet_el = item.select_one("p, div.compText")
+            snippet = snippet_el.get_text(" ", strip=True) if snippet_el else ""
+            if title and url.startswith("http"):
+                results.append({"title": title, "url": url, "snippet": snippet, "source": urlparse(url).netloc})
+            if len(results) >= limit:
+                break
+        return results
+    except Exception:
+        traceback.print_exc()
+        return []
 
 
 def _duckduckgo_instant_answer(query):
@@ -677,8 +728,8 @@ def _google_cse_results(query, limit=10):
 
 
 _SOURCE_WEIGHT = {
-    "Wikipedia": 1.15,
-    "Wikipedia (related)": 0.95,
+    "Wikipedia": 0.85,
+    "Wikipedia (related)": 0.80,
     "Stack Overflow": 1.1,
     "Hacker News": 1.0,
     "Reddit": 1.0,
@@ -715,11 +766,173 @@ def _duckduckgo_instant_answer_as_list(query):
     return [answer] if answer else []
 
 
+def _google_web_scrape(query, limit=12):
+    """Scrape Google search results directly to access entire internet"""
+    try:
+        res = requests.get(
+            "https://www.google.com/search",
+            params={"q": query, "num": limit},
+            headers={**HEADERS, "User-Agent": ESPN_HEADERS["User-Agent"]},
+            timeout=10,
+        )
+        res.raise_for_status()
+        soup = BeautifulSoup(res.text, "html.parser")
+        results = []
+        
+        for g in soup.find_all("div", class_="g"):
+            try:
+                link = g.find("a", href=True)
+                if not link:
+                    continue
+                url = link["href"]
+                if url.startswith("/url?q="):
+                    url = url.split("/url?q=")[1].split("&")[0]
+                
+                title_elem = g.find("h3")
+                title = title_elem.get_text(strip=True) if title_elem else ""
+                
+                snippet_elem = g.find("div", class_="VwiC3b")
+                snippet = snippet_elem.get_text(strip=True) if snippet_elem else ""
+                
+                if title and url and not url.startswith("http"):
+                    url = "https://" + url if not url.startswith("//") else "https:" + url
+                
+                if title and url and ("http" in url):
+                    domain = url.split("/")[2] if "//" in url else "Google"
+                    results.append({"title": title, "url": url, "snippet": snippet, "source": domain})
+                    if len(results) >= limit:
+                        break
+            except Exception:
+                continue
+        
+        return results
+    except Exception:
+        traceback.print_exc()
+        return []
+
+
+def _bing_web_scrape(query, limit=12):
+    """Scrape Bing search results for broader web coverage"""
+    try:
+        res = requests.get(
+            "https://www.bing.com/search",
+            params={"q": query, "count": limit},
+            headers={**HEADERS, "User-Agent": ESPN_HEADERS["User-Agent"]},
+            timeout=10,
+        )
+        res.raise_for_status()
+        soup = BeautifulSoup(res.text, "html.parser")
+        results = []
+        
+        for result in soup.find_all("li", class_="b_algo"):
+            try:
+                link = result.find("a", href=True)
+                if not link:
+                    continue
+                url = link["href"]
+                
+                title_elem = link.find("h2")
+                title = title_elem.get_text(strip=True) if title_elem else ""
+                
+                snippet_elem = result.find("p")
+                snippet = snippet_elem.get_text(strip=True) if snippet_elem else ""
+                
+                if title and url:
+                    domain = url.split("/")[2] if "//" in url else "Bing"
+                    results.append({"title": title, "url": url, "snippet": snippet, "source": domain})
+                    if len(results) >= limit:
+                        break
+            except Exception:
+                continue
+        
+        return results
+    except Exception:
+        traceback.print_exc()
+        return []
+
+
+
+# ---------------------------------------------------------------------------
+# SHOPPING SEARCH
+# ---------------------------------------------------------------------------
+# AetherScan's shopping tab uses the same web-search infrastructure as the
+# normal search, but ranks pages that look like product listings and removes
+# merchants the user asked not to show.
+SHOPPING_BLOCKED_DOMAINS = {
+    "aliexpress.com",
+    "www.aliexpress.com",
+    "temu.com",
+    "www.temu.com",
+}
+
+
+def _shopping_domain_blocked(url):
+    try:
+        host = (urlparse(url or "").hostname or "").lower().removeprefix("www.")
+        return host == "aliexpress.com" or host.endswith(".aliexpress.com") or host == "temu.com" or host.endswith(".temu.com")
+    except Exception:
+        return False
+
+
+def search_shopping(query, limit=24):
+    """Search for products while excluding AliExpress and Temu results."""
+    q = (query or "").strip()
+    if not q:
+        return [], None
+
+    # Adding commercial intent terms helps general search providers return
+    # product/listing pages instead of encyclopedic or informational pages.
+    search_query = f"{q} buy online price"
+    results, err = search_the_entire_internet(search_query, sort="relevance")
+
+    product_words = re.compile(
+        r"\b(buy|shop|price|sale|deal|product|order|add to cart|in stock|shipping)\b",
+        re.IGNORECASE,
+    )
+    price_pattern = re.compile(r"(?:[$£€¥]|NZ\$|AU\$|US\$)\s?\d+(?:[.,]\d{1,2})?")
+
+    cleaned = []
+    seen = set()
+    for item in results:
+        url = item.get("url") or ""
+        if not url or _shopping_domain_blocked(url):
+            continue
+        key = url.split("#", 1)[0].rstrip("/").lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        title = _repair_mojibake(item.get("title") or "")
+        snippet = _repair_mojibake(item.get("snippet") or "")
+        combined = f"{title} {snippet} {url}"
+        commercial = len(product_words.findall(combined))
+        prices = price_pattern.findall(combined)
+        if commercial == 0 and not prices:
+            continue
+        item = dict(item)
+        item["title"] = title
+        item["snippet"] = snippet
+        item["price"] = prices[0] if prices else ""
+        item["domain"] = (urlparse(url).hostname or "").removeprefix("www.")
+        item["favicon"] = f"https://www.google.com/s2/favicons?domain={quote(item['domain'])}&sz=32" if item["domain"] else ""
+        item["shopping_score"] = commercial * 3 + (3 if prices else 0)
+        cleaned.append(item)
+
+    cleaned.sort(key=lambda x: x.get("shopping_score", 0), reverse=True)
+    return cleaned[:limit], err
+
+
 def search_the_entire_internet(query, site_filter=None, sort="relevance"):
+    """
+    Enhanced search that scrapes Google and Bing directly for broader web coverage.
+    Returns results from multiple sources including generic web crawlers to access entire internet.
+    """
     sources = [
         ("Wikipedia search failed", _wikipedia_results, (query,)),
         ("DuckDuckGo search failed", _duckduckgo_results, (query,)),
         ("DuckDuckGo instant-answer failed", _duckduckgo_instant_answer_as_list, (query,)),
+        ("Google Web Scrape failed", _google_web_scrape, (query,)),
+        ("Bing Web Scrape failed", _bing_web_scrape, (query,)),
+        ("Yahoo Web search failed", _yahoo_web_results, (query,)),
         ("Stack Overflow search failed", _stackoverflow_results, (query,)),
         ("Hacker News search failed", _hackernews_results, (query,)),
         ("Wikipedia related-pages failed", _wikipedia_related_results, (query,)),
@@ -731,11 +944,31 @@ def search_the_entire_internet(query, site_filter=None, sort="relevance"):
     if SERPAPI_API_KEY:
         sources.append(("SerpAPI search failed", _serpapi_results, (query,)))
     if BING_API_KEY:
-        sources.append(("Bing search failed", _bing_results, (query,)))
+        sources.append(("Bing API search failed", _bing_results, (query,)))
     if GOOGLE_CSE_API_KEY and GOOGLE_CSE_ID:
         sources.append(("Google Custom Search failed", _google_cse_results, (query,)))
 
     results, seen_urls, errors = [], set(), []
+
+    def _is_raw_local_game_result(result):
+        """Exclude physical game HTML files from search results.
+
+        The canonical game URL is /games/<slug>; files such as
+        /games/1v1%20Fighter.html are implementation files and should not
+        appear as separate results. This is deliberately limited to the
+        local AetherScan host so normal web results are never affected.
+        """
+        try:
+            parsed = urlparse(result.get("url") or "")
+            host = (parsed.hostname or "").lower()
+            path = unquote(parsed.path or "")
+            return (
+                host in {"127.0.0.1", "localhost", "0.0.0.0"}
+                and re.fullmatch(r"/games/[^/]+\.html?", path, flags=re.IGNORECASE)
+                is not None
+            )
+        except Exception:
+            return False
 
     with ThreadPoolExecutor(max_workers=len(sources)) as pool:
         future_to_label = {pool.submit(fn, *args): label for label, fn, args in sources}
@@ -743,8 +976,19 @@ def search_the_entire_internet(query, site_filter=None, sort="relevance"):
             label = future_to_label[future]
             try:
                 for r in future.result():
-                    if r["url"] not in seen_urls:
-                        seen_urls.add(r["url"])
+                    url = r.get("url") or ""
+                    # Do not index/display the physical game HTML files.
+                    # A canonical /games/<slug> result is retained.
+                    if _is_raw_local_game_result(r):
+                        continue
+                    normalized_url = url.split("#", 1)[0].rstrip("/")
+                    if normalized_url not in seen_urls:
+                        seen_urls.add(normalized_url)
+                        # Repair mojibake only on local game results.
+                        parsed = urlparse(url)
+                        if (parsed.hostname or "").lower() in {"127.0.0.1", "localhost", "0.0.0.0"} and unquote(parsed.path or "").startswith("/games/"):
+                            r["title"] = _repair_mojibake(r.get("title") or "")
+                            r["snippet"] = _repair_mojibake(r.get("snippet") or "")
                         results.append(r)
             except Exception as e:
                 traceback.print_exc()
@@ -2549,7 +2793,72 @@ def game_legacy_redirect():
 # templates/games/<slug>.html and (2) adding one entry below -- the hub
 # page and the /games/<slug> route both pick it up automatically.
 # ---------------------------------------------------------------------------
+GAMES_TEMPLATE_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "templates", "games"
+)
+
+
+def _repair_mojibake(text):
+    """'ðŸ’¥' -> '💥' (UTF-8 bytes that were decoded as cp1252)."""
+    if not text or not any(ch in text for ch in "ÃÂðŸ¥"):
+        return text
+    try:
+        return text.encode("cp1252").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return text
+
+
+def _slugify_game(raw):
+    """'2dFighter.html' / '1v1 Fighter.html' -> '2d-fighter' / '1v1-fighter'."""
+    s = re.sub(r"\.html?$", "", str(raw or "").strip(), flags=re.IGNORECASE)
+    s = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", s)   # camelCase -> camel-Case
+    s = re.sub(r"[^a-z0-9]+", "-", s.lower())
+    return s.strip("-")
+
+
+def _normalize_games(raw_games):
+    """Repair encoding, fix slugs, and drop duplicates -- last clean entry wins."""
+    by_slug = {}
+    for entry in raw_games:
+        slug = _slugify_game(entry.get("slug") or entry.get("title"))
+        if not slug:
+            continue
+        title = _repair_mojibake((entry.get("title") or "").strip())
+        title = re.sub(r"\.html?$", "", title, flags=re.IGNORECASE).strip()
+        game = {
+            "slug": slug,
+            "title": title or slug.replace("-", " ").title(),
+            "tagline": _repair_mojibake(entry.get("tagline") or ""),
+            "icon": _repair_mojibake(entry.get("icon") or "\U0001F3AE"),
+        }
+        # prefer the entry that didn't come from a raw filename
+        if slug not in by_slug or not str(entry.get("slug", "")).lower().endswith(".html"):
+            by_slug[slug] = game
+    return list(by_slug.values())
+
+
+def _game_template_for(slug):
+    """Find the real file on disk whose NAME slugifies to this slug."""
+    try:
+        for name in sorted(os.listdir(GAMES_TEMPLATE_DIR)):
+            if name.lower().endswith((".html", ".htm")) and _slugify_game(name) == slug:
+                return f"games/{name}"
+    except OSError:
+        pass
+    return None
 GAMES = [
+    {
+        "slug": "2d-fighter",
+        "title": "2D Fighter",
+        "tagline": "A fast-paced one-on-one fighting game.",
+        "icon": "🥊",
+    },
+    {
+        "slug": "1v1-fighter",
+        "title": "1v1 Fighter",
+        "tagline": "A fast-paced one-on-one shooting game.",
+        "icon": "💥",
+    },
     {
         "slug": "quantum-forge",
         "title": "Quantum Forge: Cosmic Harvest",
@@ -2608,20 +2917,24 @@ def games_hub():
         )
 
 
-@app.route("/games/<slug>", methods=["GET"])
+@app.route("/games/<path:slug>", methods=["GET"])
 def play_game(slug):
+    slug = _slugify_game(unquote(slug))
     if not any(g["slug"] == slug for g in GAMES):
         return redirect("/games")
+    template = _game_template_for(slug)
+    if not template:
+        available = ", ".join(sorted(os.listdir(GAMES_TEMPLATE_DIR))) or "(folder is empty)"
+        return (
+            f"No template found for '{slug}' in templates/games/. Files there: {available}",
+            404,
+        )
     try:
-        return render_template(f"games/{slug}.html")
+        return render_template(template)
     except TemplateNotFound as e:
         traceback.print_exc()
-        return (
-            f"Couldn't find templates/games/{slug}.html (missing: {e.name}). "
-            "Make sure the game's HTML file is saved inside a games/ subfolder "
-            "of your templates/ directory, not directly in templates/.",
-            500,
-        )
+        return f"Couldn't render {template} (missing: {e.name}).", 500
+        
 
 
 @app.route("/", methods=["GET"])
@@ -2645,6 +2958,7 @@ def home():
     related_searches, spelling_suggestion = [], None
     news_articles = []
     movie_results = []
+    shopping_results = []
     compare_data = None
     on_this_day = []
     errors = []
@@ -2654,7 +2968,7 @@ def home():
     if mode == "all" and not query:
         on_this_day = get_on_this_day()
 
-    if query and mode in ("all", "images", "videos", "news", "movies"):
+    if query and mode in ("all", "images", "videos", "news", "movies", "shopping"):
         save_search_history(session.get("user_id"), query, mode)
 
     if mode == "sports":
@@ -2673,6 +2987,11 @@ def home():
     elif mode == "movies":
         if query:
             movie_results, err = get_live_movies(query)
+            if err:
+                errors.append(err)
+    elif mode == "shopping":
+        if query:
+            shopping_results, err = search_shopping(query)
             if err:
                 errors.append(err)
     elif mode == "maps":
@@ -2750,6 +3069,7 @@ def home():
         map_center_lon=map_center_lon,
         news_articles=news_articles,
         movie_results=movie_results,
+        shopping_results=shopping_results,
         tmdb_configured=bool(_effective_tmdb_key()),
         cesium_configured=bool(CESIUM_ION_TOKEN),
         cesium_token=CESIUM_ION_TOKEN,
