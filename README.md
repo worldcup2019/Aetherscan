@@ -6,6 +6,7 @@ Search the web, images, videos, news, sports, maps, movies, and more without bei
 
 ## Features
 
+- Shopping search 
 - Web search using multiple public sources
 - Image, video, news, sports, map, and movie search
 - Optional AI overview and AI chat
